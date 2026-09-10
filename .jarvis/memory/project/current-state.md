@@ -6,10 +6,20 @@
 id: MEM-20260910-PROJ-001
 type: project-state
 status: active
+
+# Epistemic
 source: user
 confidence: 1.0
+
+# Authority
+authority: user-explicit
+approval: explicit
+scope: 11:11 Division
+
+# Lifecycle
 created: 2026-09-10
 updated: 2026-09-10
+supersedes: null
 ---
 
 ## 11:11 Division — Current State
@@ -36,3 +46,5 @@ updated: 2026-09-10
 - Three-surface model: .jarvis/ + vault/ + repo
 - Anti-hallucination rules in place
 - Epistemic memory with metadata
+- Authority-separated memory system
+- Inbox quarantine layer

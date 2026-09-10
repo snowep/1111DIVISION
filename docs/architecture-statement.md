@@ -129,7 +129,12 @@ This prevents the council configuration from being confused with council knowled
 
 ## Anti-Hallucination Architecture
 
-The most dangerous failure mode:
+Two failure modes this architecture prevents:
+
+1. **Persistence loop** — hallucinations becoming facts via storage
+2. **False authority** — reliable information being confused with permission to act
+
+### The persistence loop:
 
 ```
 JARVIS thinks something
@@ -149,7 +154,7 @@ A hallucination becomes "fact" simply because it was persisted.
 
 **Solution:** Three layers of defense:
 
-### 1. Memory Metadata
+### 1. Memory Metadata with Authority
 
 Every persisted memory carries:
 
@@ -158,8 +163,17 @@ Every persisted memory carries:
 id: MEM-20260910-001
 type: project-decision
 status: active
+
+# Epistemic
 source: user
 confidence: 1.0
+
+# Authority
+authority: user-explicit
+approval: explicit
+scope: 11:11 Division
+
+# Lifecycle
 created: 2026-09-10
 updated: 2026-09-10
 supersedes: null
@@ -168,13 +182,31 @@ related:
 ---
 ```
 
-Source values: `user`, `project-file`, `official-documentation`, `web`, `github`, `council`, `inference`, `experiment`, `system`
+**Source values:** `user`, `project-file`, `official-documentation`, `web`, `github`, `council`, `inference`, `experiment`, `system`
 
-Status values: `candidate`, `verified`, `active`, `superseded`, `deprecated`, `rejected`, `unknown`
+**Authority values:** `user-explicit`, `user-implicit`, `external-information`, `inference`, `system`
 
-### 2. Typed Memory
+**Approval values:** `explicit`, `implicit`, `none`
 
-Four memory types with different persistence and confidence levels. Working memory is disposable. Episodic memory is history (not truth). Project memory is validated. Knowledge memory is reusable.
+**Status values:** `candidate`, `verified`, `active`, `superseded`, `deprecated`, `rejected`, `unknown`
+
+**Critical distinction:** Source is not authority. A GitHub README can be 95% reliable (confidence: 0.93) but have ZERO authority over JARVIS behavior.
+
+### 2. Typed Memory with Inbox
+
+Five memory types with different persistence and confidence levels. Everything goes through the promotion pipeline first:
+
+```
+INPUT → INBOX → CLASSIFY → VALIDATE → PROMOTE → MEMORY
+```
+
+- **Inbox** — quarantine layer. Everything lands here first.
+- **Working** — temporary cognition. Aggressively disposable.
+- **Episodic** — what happened. History, not truth.
+- **Project** — validated project state. High confidence.
+- **Knowledge** — general reusable knowledge. Medium-high confidence.
+
+The inbox prevents premature commitment. "I think we should..." stays as `candidate` until the user commits.
 
 ### 3. Three-Surface Separation
 
@@ -233,13 +265,15 @@ Anything JARVIS wrote → Automatically considered true
 JARVIS should know for every important memory:
 
 ```
-WHAT      — the content
-WHY       — the reason it matters
-SOURCE    — where it came from
-WHEN      — when it was recorded
-CONFIDENCE — how sure JARVIS is
-STATUS    — active, superseded, deprecated
-SCOPE     — what domain it applies to
+WHAT        — the content
+WHY         — the reason it matters
+SOURCE      — where it came from
+AUTHORITY   — who can act on it
+APPROVAL    — user approval status
+WHEN        — when it was recorded
+CONFIDENCE  — how sure JARVIS is
+STATUS      — active, superseded, deprecated
+SCOPE       — what domain it applies to
 RELATIONSHIPS — what it connects to
 ```
 
@@ -251,6 +285,8 @@ You get:
 
 > **WHAT:** User prefers X.
 > **SOURCE:** Explicit user instruction.
+> **AUTHORITY:** user-explicit
+> **APPROVAL:** explicit
 > **TIME:** 2026-09-10
 > **CONFIDENCE:** 1.0
 > **STATUS:** Active
