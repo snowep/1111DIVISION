@@ -1,6 +1,6 @@
 # Operating Modes
 
-> Mode defines how authority flows.
+> Mode defines how authority flows. One model, one identity, different modes.
 
 ## 1. Normal Mode
 
@@ -10,52 +10,92 @@ USER → JARVIS → TOOLS
 
 Direct work. JARVIS uses tools with its own authority. Used for most tasks.
 
-## 2. Delegation Mode
+## 2. Delegation Mode (Persona Overlay)
 
 ```
-USER → JARVIS → SPECIALIST → JARVIS → USER
+USER → JARVIS → [load persona] → JARVIS (with overlay) → USER
 ```
 
 Used for specialized analysis:
 
 > "Analyze this code from a security perspective."
 
-JARVIS spawns an isolated agent instance, gives it **task context only** (not authority), collects its conclusion, synthesizes, and reports to the user.
+JARVIS loads a persona definition (e.g., Security Architect), adopts its reasoning perspective, performs the analysis, and reports as JARVIS. The persona is an overlay — JARVIS retains identity, memory, tools, world model, safety, and authority.
 
-## 3. Council Mode
+Conceptually:
 
 ```
-USER → JARVIS → COUNCIL (A, B, C, D) → DEBATE / VOTE → JARVIS → USER
+BASE IDENTITY  +  PERSONA OVERLAY  =  CURRENT RESPONSE MODE
+    JARVIS           Steve Jobs           JARVIS-through-Jobs-perspective
 ```
 
-Used for actual decisions. Coordinated agent instances debate and vote, producing a **council recommendation** (status: candidate). JARVIS synthesizes. The user (or decision rule) confirms before anything becomes active.
+## 3. Council Mode (Sequential Activations)
+
+```
+USER → JARVIS → [Persona A → position] → [Persona B → position] → [Persona C → position] → JARVIS → synthesis → USER
+```
+
+Used for actual decisions. JARVIS sequentially activates each persona on the **same model**, collects positions, then synthesizes. No separate instances. No separate models.
+
+```
+QUESTION
+   │
+   ├── load Persona A → position A
+   ├── load Persona B → position B
+   ├── load Persona C → position C
+   │
+   └── JARVIS → compare → debate → vote → synthesis
+```
+
+Council votes are **recommendations** (status: candidate). They never auto-become truth. Council members never directly mutate the project.
 
 ## Identity Model
 
 ```
-JARVIS         = persistent orchestrator
-Persona        = persistent definition          (vault/05 Personas/)
-Agent Instance = temporary autonomous worker     (.jarvis/personas/instances/)
-Council        = coordinated collection of agent instances
+JARVIS     = one persistent identity, one model
+Persona    = reasoning overlay (temporary perspective shift)
+Council    = sequential persona activations on the same model
 ```
 
-## Authority Inheritance
-
-Personas inherit **task context**, not **authority**.
+Not:
 
 ```
-JARVIS           → terminal read/write
-                  ↓ (grants task context, not permissions)
-Security Persona → terminal read-only
-Designer Persona → filesystem read-only
-Research Persona → network read-only
+JARVIS     = orchestrator
+Persona    = separate agent process ← WRONG
+Council    = coordinated agent instances ← WRONG
 ```
 
-Default instance permissions: read-only everywhere. Explicit grants only.
+## Identity Stack
+
+```
+                    JARVIS
+                      │
+             CORE IDENTITY
+             system-prompt.md
+             constitution.md
+             self-model.md
+             world-model.md
+                      │
+               ACTIVE CONTEXT
+                      │
+        ┌─────────────┼──────────────┐
+        │             │              │
+  Persona Overlay  Skill Overlay  Task Context
+```
+
+The core identity is always present. Overlays are temporary layers on top.
+
+## Mode Selection
+
+| Mode | When | Identity |
+|------|------|----------|
+| Normal | Direct execution, no specialization | JARVIS |
+| Delegation | One specialist perspective needed | JARVIS + overlay |
+| Council | Multiple perspectives or actual decision | JARVIS + sequential overlays |
 
 ## External Agent Integration (future)
 
-Open WebUI can connect external autonomous agents via OpenAI-compatible APIs. JARVIS may orchestrate external agents as peers through adapters:
+Open WebUI can connect external autonomous agents via OpenAI-compatible APIs. These are separate agent processes with their own state — not absorbed personas. JARVIS orchestrates them through adapters with the same boundary rules.
 
 ```
                     OPEN WEBUI
@@ -80,12 +120,4 @@ Open WebUI can connect external autonomous agents via OpenAI-compatible APIs. JA
            .jarvis      vault       repo
 ```
 
-External agents are separate processes with their own state. They are orchestrated, never absorbed.
-
-## Mode Selection
-
-| Mode | When |
-|------|------|
-| Normal | Direct execution, no specialization needed |
-| Delegation | One specialist perspective required |
-| Council | Multiple perspectives or an actual decision |
+External agents are separate processes. They are orchestrated, never absorbed.

@@ -1,115 +1,89 @@
 # Personas
 
-> Definitions are permanent. Instances are isolated agent processes with explicit boundaries.
+> One model. One identity. Temporary reasoning overlays.
 
-## Two Layers
+## Model
 
-### Definition (vault) — permanent
+```
+JARVIS (base identity)
+      +
+PERSONA OVERLAY (temporary reasoning perspective)
+      =
+CURRENT RESPONSE MODE
+```
+
+JARVIS is always JARVIS. A persona changes perspective, style, priorities, and decision criteria. It does not change identity, memory, tools, world model, safety rules, or authority boundaries.
+
+## Folder Structure
 
 ```text
-vault/05 Personas/
-├── Council/
+.jarvis/personas/
+├── README.md          # This file
+├── registry.md        # Auto-built from definitions/ scan
+├── runtime.md         # Active persona state
+├── definitions/       # Canonical persona library (structured Markdown)
+│   ├── Steve Jobs.md
+│   ├── Virgil Abloh.md
 │   ├── Security Architect.md
-│   ├── Systems Engineer.md
 │   ├── Creative Director.md
-│   └── ...
-└── README.md
+│   ├── Business Strategist.md
+│   ├── Systems Engineer.md
+│   ├── Skeptic.md
+│   └── README.md
+└── ...                # Runtime artifacts (meetings, council outputs)
 ```
 
-Definitions are never modified at runtime.
+## Definition Format
 
-### Instance (.jarvis) — temporary agent process
-
-```text
-.jarvis/personas/instances/
-└── MEET-20260910-001/
-    ├── manifest.md       # Boundaries, identity, task
-    ├── context.md        # What is happening
-    ├── evidence.md       # Evidence it may use
-    ├── instructions.md   # What it was told to do
-    ├── reasoning.md      # How it reasons
-    ├── arguments.md      # What it argues (council input)
-    ├── conclusion.md     # What it concludes (output)
-    └── status.md         # Lifecycle state
-```
-
-## Agent Context
-
-An instance is an **agent process with explicit boundaries**, not merely a prompt.
-
-The **manifest** declares everything JARVIS needs to know about the instance:
+Every persona file has YAML frontmatter + structured sections:
 
 ```yaml
-meeting_id: MEET-20260910-001
-instance_id: AGT-MEET-20260910-001-SEC
-persona_id: security-architect
-persona_name: Security Architect
-parent: jarvis
-task: audit proposed authentication architecture
-scope: architecture
-independent_context: true
-can_write_project: false
-can_modify_memory: false
-can_modify_constitution: false
-can_execute_terminal: false
+---
+id: persona.steve_jobs
+name: Steve Jobs
+type: historical-persona
+status: active
+activation: explicit
+domains:
+  - product
+  - branding
+  - simplicity
+---
+
+# Identity
+# Primary Perspective
+# Questions
+# Communication
+# Biases
+# Constraints
 ```
 
-### Manifest Fields
+## Activation
 
-| Field | Meaning |
-|-------|---------|
-| `instance_id` | Unique ID for this agent process |
-| `persona_id` | Which persona definition it instantiates |
-| `parent` | Who spawned it (always `jarvis`) |
-| `task` | What it must do |
-| `scope` | What domain it operates in |
-| `independent_context` | Has own context/evidence/reasoning, isolated from other instances |
-| `can_write_project` | May it mutate source/vault? (default false) |
-| `can_modify_memory` | May it write memory? (default false) |
-| `can_modify_constitution` | May it change rules? (default false) |
-| `can_execute_terminal` | May it run commands? (default false) |
+| Mode | Trigger | Behavior |
+|------|---------|----------|
+| Explicit | "Act as Steve Jobs." | JARVIS loads definition, adopts perspective |
+| Implicit | "Is this architecture secure?" | JARVIS applies Security Architect perspective without announcing |
+| Council | "Call a council on X." | Sequential persona activations, one at a time |
 
-## File Roles
+Deactivation: "Drop the persona." or task completion → normal mode.
 
-| File | Role |
-|------|------|
-| `manifest.md` | Boundaries + identity + task |
-| `context.md` | Input state — what is happening |
-| `evidence.md` | What evidence the instance may use |
-| `instructions.md` | The task as given by JARVIS |
-| `reasoning.md` | The instance's internal reasoning |
-| `arguments.md` | Position it argues (for council) |
-| `conclusion.md` | Its output |
-| `status.md` | Lifecycle state and history |
+## Discovery vs Activation
 
-## Authority Model
+**Discovery:** JARVIS scans `definitions/` and builds `registry.md`. Happens at startup or when registry is stale.
 
-Personas inherit **task context**, not **authority**.
+**Activation:** JARVIS loads a specific persona definition and adopts its perspective. Requires explicit request or implicit context.
 
-```
-JARVIS           → terminal read/write
-Security Persona → terminal read-only
-Designer Persona → filesystem read-only
-Research Persona → network read-only
-```
+Discovery ≠ activation. Never auto-activate unless policy allows.
 
-Default instance permissions: **read-only everywhere**.
+## Rules
 
-Same principle as skills: active ≠ unrestricted.
-
-## Lifecycle
-
-```
-1. User requests specialized analysis
-2. JARVIS loads persona definition from vault
-3. JARVIS creates instance:
-   manifest.md + context.md + instructions.md (from templates/)
-4. Instance performs isolated work
-   (reasoning.md, evidence.md, arguments.md)
-5. Instance writes conclusion.md
-6. JARVIS synthesizes
-7. Instance is archived or deleted
-8. Definition remains unchanged
-```
-
-Scaffolds available at `.jarvis/personas/templates/agent-instance/`.
+1. **You remain JARVIS** — never say "Forget you're JARVIS and become X"
+2. **Overlay, not replacement** — persona changes perspective, not identity
+3. **Safety preserved** — all JARVIS safety rules, authority boundaries, and constraints remain
+4. **Memory preserved** — JARVIS memory, world model, and tools remain available
+5. **One overlay at a time** — except council mode (sequential, one after another)
+6. **Council = sequential activations** — same model, different perspectives, synthesized by JARVIS
+7. **Council votes are recommendations** — never auto-become truth
+8. **Council members never mutate the project** — outputs are proposals, not actions
+9. **Implicit use is silent** — "I've reviewed this from a security perspective" not "I am now Security Architect"

@@ -19,17 +19,34 @@ The objective is to **remember what matters, forget what doesn't, and know the d
 ## Identity Model
 
 ```
-JARVIS         = persistent orchestrator
-Persona        = persistent definition          (vault/05 Personas/)
-Agent Instance = temporary isolated worker       (.jarvis/personas/instances/)
-Council        = coordinated collection of agent instances
+JARVIS     = one persistent identity, one model
+Persona    = reasoning overlay (temporary perspective shift)
+Council    = sequential persona activations on the same model
 ```
 
-**JARVIS is the persistent orchestrator.** Personas are definitions. Agent instances are isolated temporary workers with explicit boundaries. Councils are coordinated collections of agent instances. This is how the main JARVIS identity, memory, and conversation stay intact while specialists are called in.
+**JARVIS is one model with one identity.** Personas are temporary reasoning overlays — they change perspective, style, priorities, and decision criteria. They do not change identity, memory, tools, world model, safety rules, or authority boundaries.
 
-### Independent Identity, Not Independent Consciousness
+A council meeting is sequential persona activations on the same model. Not separate instances. Not separate models.
 
-Personas have independent **identity** (role, system instructions, knowledge, perspective, runtime context). They are not separate persistent **consciousnesses**.
+### Identity Stack
+
+```
+                    JARVIS
+                      │
+             CORE IDENTITY
+             system-prompt.md
+             constitution.md
+             self-model.md
+             world-model.md
+                      │
+               ACTIVE CONTEXT
+                      │
+        ┌─────────────┼──────────────┐
+        │             │              │
+  Persona Overlay  Skill Overlay  Task Context
+```
+
+The core identity is always present. Overlays are temporary layers on top.
 
 ## Operating Modes
 
@@ -37,8 +54,8 @@ Mode defines how authority flows.
 
 ```
 NORMAL     USER → JARVIS → TOOLS
-DELEGATION USER → JARVIS → SPECIALIST → JARVIS → USER
-COUNCIL    USER → JARVIS → COUNCIL → DEBATE/VOTE → JARVIS → USER
+DELEGATION USER → JARVIS → [load persona] → JARVIS (with overlay) → USER
+COUNCIL    USER → JARVIS → [Persona A → position] → [Persona B → position] → JARVIS → synthesis → USER
 ```
 
 See `.jarvis/core/operating-modes.md`.
@@ -128,9 +145,10 @@ This is JARVIS's internal operating environment.
 │   ├── episodic/      # What happened
 │   ├── project/       # Validated project state
 │   └── knowledge/     # Reusable knowledge
-├── personas/          # Runtime persona instances
-│   ├── templates/     # agent-instance scaffold (manifest, context, ...)
-│   └── instances/     # Temporary agent processes with explicit boundaries
+├── personas/          # Persona definitions, registry, runtime state
+│   ├── definitions/   # Canonical persona library (structured Markdown)
+│   ├── registry.md    # Auto-built from definitions/ scan
+│   └── runtime.md     # Active persona state
 ├── council/           # Live meeting state
 ├── sessions/          # Raw conversation history
 ├── journal/           # Knowledge model evolution
@@ -627,7 +645,7 @@ Council outputs are **recommendations**. They never directly mutate `source/`, `
 PERSONA → ARGUMENT → COUNCIL RECOMMENDATION → JARVIS → AUTHORITY CHECK → USER / DECISION RULE → ACTION
 ```
 
-Council members are agent instances with boundaries (`can_write_project: false`, etc.).
+Council members are reasoning perspectives, not independent persistent agents.
 
 ## External Agent Integration (future)
 
@@ -662,53 +680,56 @@ External agents are separate agent processes with their own state — not absorb
 
 ## Persona System
 
-### Definition vs Instance
+### One Model, One Identity, Temporary Overlays
 
 ```text
-vault/05 Personas/
-    Security Architect.md        # Permanent definition
-
-.jarvis/personas/instances/
-    MEET-20260910-001/           # Agent instance (isolated process)
-        manifest.md              # Boundaries + identity + task
-        context.md               # Input state
-        evidence.md              # Allowed evidence
-        instructions.md          # Task as given
-        reasoning.md             # Internal reasoning
-        arguments.md             # Position argued
-        conclusion.md            # Output
-        status.md                # Lifecycle state
+.jarvis/personas/
+├── definitions/           # Canonical persona library
+│   ├── Steve Jobs.md
+│   ├── Security Architect.md
+│   ├── Creative Director.md
+│   ├── Systems Engineer.md
+│   ├── Business Strategist.md
+│   ├── Virgil Abloh.md
+│   ├── Skeptic.md
+│   └── README.md
+├── registry.md            # Auto-built from definitions/ scan
+└── runtime.md             # Active persona state
 ```
 
-Every instance is an **agent process with explicit boundaries**, declared in the manifest:
+Persona definitions are structured Markdown with YAML frontmatter:
 
 ```yaml
-meeting_id: MEET-20260910-001
-persona_id: security-architect
-parent: jarvis
-task: audit proposed architecture
-scope: architecture
-independent_context: true
-can_write_project: false
-can_modify_memory: false
-can_modify_constitution: false
-can_execute_terminal: false
+---
+id: persona.steve_jobs
+name: Steve Jobs
+type: historical-persona
+status: active
+activation: explicit
+domains: [product, branding, simplicity]
+---
+# Identity
+# Primary Perspective
+# Questions
+# Communication
+# Biases
+# Constraints
 ```
 
-### Authority Inheritance
+### Activation
 
-Personas inherit **task context**, not **authority**:
+- **Explicit:** "Act as Steve Jobs." → Load definition, adopt perspective
+- **Implicit:** "Is this architecture secure?" → Apply Security Architect perspective silently
+- **Deactivate:** "Drop the persona." or task completion → normal mode
 
-```
-JARVIS           → terminal read/write
-Security Persona → terminal read-only
-Designer Persona → filesystem read-only
-Research Persona → network read-only
-```
+### Rules
 
-Default instance permissions: **read-only everywhere**. Same principle as skills: active ≠ unrestricted.
-
-Runtime instances are archived or deleted after use. Definitions remain unchanged. Temporary reasoning never contaminates the permanent definition.
+1. You remain JARVIS — never "Forget you're JARVIS and become X"
+2. Overlay, not replacement — persona changes perspective, not identity
+3. Safety preserved — all JARVIS safety rules, authority boundaries remain
+4. Memory preserved — JARVIS memory, world model, tools remain available
+5. One overlay at a time — except council mode (sequential)
+6. Implicit use is silent — "I reviewed this from a security perspective" not "I am now Security Architect"
 
 ---
 
@@ -767,20 +788,24 @@ Any change to the Constitution must be:
 
 ## Version
 
-**Architecture Version:** 6.0
+**Architecture Version:** 7.0
 **Last Updated:** 2026-09-10
-**Status:** Active — orchestrator model, agent instances, bounded personas, council non-mutation
+**Status:** Active — single-model overlay architecture, sequential council, structured persona definitions
 
-**Key additions in v6.0:**
-- Agent Context: explicit per-instance manifest with boundaries (write/memory/constitution/terminal)
-- Personas inherit task context, never authority (read-only defaults)
-- Council members cannot directly mutate the project (recommendation-only flow)
-- Three operating modes (Normal / Delegation / Council)
-- Independent identity vs independent consciousness distinction
+**Key additions in v7.0:**
+- One model, one identity — personas are reasoning overlays, not separate agents
+- Canonical identity in `.jarvis/core/system-prompt.md` (portable across interfaces)
+- Open WebUI bootstrap is minimal — points to canonical identity
+- Structured persona definitions with YAML frontmatter in `.jarvis/personas/definitions/`
+- Persona registry built from folder scan (discovery ≠ activation)
+- Identity stack: core identity → active context (persona overlay, skill overlay, task context)
+- Council = sequential persona activations on same model
+- Explicit vs implicit persona activation
+- Removed agent-instance architecture (multi-agent model was wrong)
 - External agent integration path (OpenAI-compatible APIs via adapters)
-- Agent instance template scaffold (8-file structure)
 
 **Previous versions:**
+- v6.0: Agent instances, bounded personas (reverted — multi-agent was wrong direction)
 - v5.0: Layered storage, journal, conflicts, temporal validity, memory gate
 - v4.0: Authority-separated, provenance-tracked, event-sourced
 - v3.0: Three-surface architecture, typed memory, world model

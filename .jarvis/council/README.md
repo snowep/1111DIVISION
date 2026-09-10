@@ -1,51 +1,58 @@
 # Council
 
-> Recommendations, never mutations. Votes stay candidates.
+> Sequential persona activations on the same model. Recommendations, never mutations.
 
-## Three Surfaces
+## Model
 
-```text
-/council/                    # Canonical configuration
-├── config.yaml              # Meeting settings
-├── seats/                   # Seat definitions
-│   ├── fixed/               # Permanent seats
-│   ├── rotating/            # Topic-specific seats
-│   └── reserved/            # Future expansion
-└── decisions/               # Active decisions
+A council meeting is **sequential persona activations on the same model**:
 
-.jarvis/council/             # Live meeting state
-├── meetings/                # Current/recent meetings
-│   └── MEETING-20260910-001/
-│       ├── agenda.md
-│       ├── participants.md
-│       ├── arguments.md
-│       ├── votes.md
-│       └── conclusion.md
-└── README.md
-
-vault/                       # Summarized institutional knowledge
-└── 06 - Methodology/
-    └── council/             # Meeting summaries
 ```
+QUESTION
+   │
+   ▼
+JARVIS
+   │
+   ├── load Persona A → position A
+   │
+   ├── load Persona B → position B
+   │
+   ├── load Persona C → position C
+   │
+   └── JARVIS
+          ↓
+       compare
+          ↓
+       debate
+          ↓
+        vote
+          ↓
+      synthesis
+```
+
+Same base model. Different persona overlay for each participant.
+
+## Identity Stack During Council
+
+```
+JARVIS (base identity — always present)
+   │
+   ├── Council Mode (active)
+   │
+   ├── Persona A (loaded → position → saved → unloaded)
+   ├── Persona B (loaded → position → saved → unloaded)
+   ├── Persona C (loaded → position → saved → unloaded)
+   │
+   └── JARVIS (synthesis — final)
+```
+
+JARVIS identity, memory, tools, world model, safety rules, and authority boundaries are never replaced.
 
 ## Non-Mutation Flow
 
 Council members **cannot directly change the project**.
 
 ```
-PERSONA
-   ↓
-ARGUMENT
-   ↓
-COUNCIL RECOMMENDATION
-   ↓
-JARVIS
-   ↓
-AUTHORITY CHECK
-   ↓
-USER / DECISION RULE
-   ↓
-ACTION
+PERSONA → POSITION → COUNCIL RECOMMENDATION → JARVIS → AUTHORITY CHECK → USER / DECISION RULE → ACTION
 ```
 
 Even:
@@ -56,13 +63,7 @@ Virgil:     "Replace it with X."
 Security:   "Block Y."
 ```
 
-Those are **recommendations**. They never directly mutate:
-
-```
-source/
-vault/
-.jarvis/core/
-```
+Those are **recommendations**. They never directly mutate `source/`, `vault/`, or `.jarvis/core/`.
 
 ## Epistemic Model
 
@@ -91,39 +92,33 @@ based_on: council-recommendation-MEETING-001
 
 ### Why this matters
 
-Simulated personas (Security Architect, Systems Engineer, etc.) are **reasoning perspectives**, not authorities.
+Simulated personas (Security Architect, Systems Engineer, etc.) are **reasoning perspectives**, not authorities. If council votes auto-became truth, a council of simulated personas would become an authority loophole. Council is a reasoning tool, not a decision-maker.
 
-If council votes auto-became truth:
+## Three Surfaces
 
+```text
+/council/                    # Canonical configuration
+├── config.yaml              # Meeting settings
+├── seats/                   # Seat definitions
+│   ├── fixed/               # Permanent seats
+│   ├── rotating/            # Topic-specific seats
+│   └── reserved/            # Future expansion
+└── decisions/               # Active decisions
+
+.jarvis/council/             # Live meeting state
+├── meetings/                # Current/recent meetings
+│   └── MEETING-20260910-001/
+│       ├── agenda.md
+│       ├── participants.md
+│       ├── positions.md     # Each persona's position
+│       ├── votes.md
+│       └── conclusion.md
+└── README.md
+
+vault/                       # Summarized institutional knowledge
+└── 06 - Methodology/
+    └── council/             # Meeting summaries
 ```
-Council vote: 8/10 → architecture A
-    ↓
-status: active  ← WRONG
-    ↓
-JARVIS acts on this as truth
-```
-
-This is an authority loophole. The council is a reasoning tool, not a decision-maker.
-
-## Council Members Are Agent Instances
-
-Each council member is an **agent instance** with explicit boundaries:
-
-```yaml
-instance_id: AGT-MEET-20260910-001-SEC
-persona_id: security-architect
-parent: jarvis
-task: review the proposed architecture
-scope: security
-independent_context: true
-can_write_project: false
-can_modify_memory: false
-can_modify_constitution: false
-can_execute_terminal: false
-```
-
-A council is a **coordinated collection of agent instances**.
-Each works in isolation (context, evidence, reasoning, arguments), then votes. JARVIS synthesizes.
 
 ## Meeting Format
 
@@ -133,33 +128,31 @@ Each works in isolation (context, evidence, reasoning, arguments), then votes. J
 meeting_id: MEETING-20260910-001
 topic: Authentication Architecture Review
 scheduled: 2026-09-10T14:00:00Z
-seats:
+participants:
   - Security Architect
   - Systems Engineer
-  - Creative Director
-  - User Advocate
+  - Business Strategist
 mode: council
 ```
 
-### Arguments
-
-Each seat produces independent analysis:
+### Positions (one per participant)
 
 ```yaml
-seat: Security Architect
-arguments:
-  - "Current auth lacks rate limiting"
-  - "JWT tokens have no expiration"
+participant: Security Architect
+persona_id: persona.security_architect
+position: approve with conditions
+confidence: 0.9
+supporting_arguments:
+  - "Rate limiting is critical for security"
 counterarguments:
   - "Rate limiting adds latency"
-  - "Short expiration hurts UX"
 recommendation: Implement rate limiting with progressive delays
 ```
 
 ### Votes
 
 ```yaml
-seat: Security Architect
+participant: Security Architect
 vote: approve
 confidence: 0.9
 reasoning: "Rate limiting is critical for security"
@@ -178,10 +171,11 @@ status: candidate  ← NOT active
 
 ## Rules
 
-1. **Council votes stay candidates** — never auto-become truth
-2. **Council members never mutate the project** — recommendations only
-3. **Decision-authority required** — user must approve to make active
-4. **Reasoning preserved** — arguments and counterarguments are kept
-5. **Audit trail** — meeting events are logged
-6. **Seats are perspectives** — not separate consciousnesses
-7. **Disagreement is healthy** — fake consensus is worse than disagreement
+1. **Sequential activation** — one persona at a time, same model, position saved before next loads
+2. **Council votes stay candidates** — never auto-become truth
+3. **Council members never mutate the project** — recommendations only
+4. **Decision-authority required** — user must approve to make active
+5. **Reasoning preserved** — positions and counterarguments are kept
+6. **Audit trail** — meeting events are logged
+7. **Seats are perspectives** — not separate consciousnesses
+8. **Disagreement is healthy** — fake consensus is worse than disagreement

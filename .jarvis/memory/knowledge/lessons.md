@@ -458,7 +458,7 @@ supersedes: null
 ## Persona Instances Are Temporary
 
 - `vault/05 Personas/` — permanent definition
-- `.jarvis/personas/instances/` — runtime instance (temporary)
+- `.jarvis/personas/definitions/` — canonical persona library; `.jarvis/personas/runtime.md` — active overlay state
 
 Runtime instances disappear or get archived after use.
 Prevents temporary reasoning from contaminating permanent definition.
