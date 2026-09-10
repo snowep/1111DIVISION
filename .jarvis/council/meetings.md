@@ -10,6 +10,11 @@
 
 None.
 
+## Protocol
+
+Meeting procedure: `.jarvis/council/meeting-protocol.md`
+Templates: `.jarvis/council/templates/`
+
 ## Queued
 
 - Drop scarcity model

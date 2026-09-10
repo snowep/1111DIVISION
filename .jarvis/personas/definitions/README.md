@@ -63,7 +63,7 @@ CREATE → VALIDATE → REGISTER → DISCOVERABLE → ACTIVATABLE → REVIEW →
 | Stage | Meaning |
 |-------|---------|
 | CREATE | JARVIS or user writes a new persona definition |
-| VALIDATE | Definition passes format check (frontmatter, sections, constraints) |
+| VALIDATE | Definition passes format check (frontmatter, sections, constraint block) |
 | REGISTER | Entry added to `registry.md` |
 | DISCOVERABLE | JARVIS can match it to relevant questions/tasks |
 | ACTIVATABLE | Can be loaded and applied (explicit or implicit) |

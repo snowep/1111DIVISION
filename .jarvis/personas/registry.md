@@ -41,4 +41,8 @@ Implicit use does not announce the switch. JARVIS remains JARVIS to the user.
 
 ## Last Scanned
 
-2026-09-10 — 7 personas found
+2026-09-11 — 7 personas found
+
+## Protocol
+
+Activation/deactivation procedure: `.jarvis/personas/activation-protocol.md`
