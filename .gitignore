@@ -4,6 +4,9 @@
 # Source data (large, personal)
 *.txt
 *.json
+# Exception: council API schema JSON must be tracked (Phase 10)
+!.jarvis/council/schemas/*.json
+!**/schemas/**/*.json
 
 # JARVIS machine memory (not for git)
 # .jarvis/

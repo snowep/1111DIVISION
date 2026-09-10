@@ -1,0 +1,239 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "jarvis://schemas/meeting-record.schema.json",
+  "title": "MeetingRecord",
+  "description": "Root object. Composes all council schemas. Companion to api-schema.md Schema 7.",
+  "type": "object",
+  "required": [
+    "id", "question", "meeting_type", "status", "created_at",
+    "participants", "evidence", "positions", "cross_examination",
+    "agreement", "votes", "synthesis", "confidence",
+    "recommendation", "reversal_conditions", "flags"
+  ],
+  "properties": {
+    "id": { "type": "string", "pattern": "^MEETING-\\d{8}-\\d+$" },
+    "question": { "type": "string", "minLength": 3 },
+    "meeting_type": { "type": "string", "enum": ["risk-assessment", "strategic-direction", "technical-decision", "ethical-review", "default"] },
+    "status": { "type": "string", "enum": ["planned", "in_progress", "complete"] },
+    "created_at": { "type": "string", "format": "date-time" },
+    "completed_at": { "type": ["string", "null"], "format": "date-time" },
+
+    "participants": {
+      "type": "array",
+      "minItems": 2,
+      "items": {
+        "type": "object",
+        "required": ["persona_id", "persona_name", "domain", "position_status"],
+        "properties": {
+          "persona_id": { "type": "string", "pattern": "^persona\\.[a-z0-9-]+$" },
+          "persona_name": { "type": "string" },
+          "domain": { "type": "string" },
+          "position_status": { "type": "string", "enum": ["loaded", "positioned", "unloaded"] },
+          "activated_at": { "type": "string", "format": "date-time" },
+          "deactivated_at": { "type": ["string", "null"], "format": "date-time" }
+        }
+      }
+    },
+
+    "evidence": {
+      "type": "array",
+      "items": { "$ref": "https://jarvis/schemas/evidence.schema.json" }
+    },
+
+    "positions": {
+      "type": "array",
+      "items": { "$ref": "https://jarvis/schemas/position.schema.json" }
+    },
+
+    "cross_examination": {
+      "type": "object",
+      "required": ["meeting_id", "conflicts", "skipped"],
+      "properties": {
+        "meeting_id": { "type": "string" },
+        "skipped": { "type": "boolean" },
+        "skip_reason": { "type": "string" },
+        "conflicts": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["id", "disagreement", "materiality", "positions_in_conflict", "resolution_options", "jarvis_assessment", "strongest_option_id"],
+            "properties": {
+              "id": { "type": "string", "pattern": "^CONFLICT-\\d+$" },
+              "disagreement": { "type": "string" },
+              "materiality": { "type": "string", "enum": ["high", "medium", "low"] },
+              "positions_in_conflict": {
+                "type": "array",
+                "minItems": 2,
+                "items": {
+                  "type": "object",
+                  "required": ["participant", "stance", "primary_evidence", "core_reasoning"],
+                  "properties": {
+                    "participant": { "type": "string" },
+                    "stance": { "type": "string" },
+                    "primary_evidence": { "type": "array", "items": { "type": "string" } },
+                    "core_reasoning": { "type": "string" }
+                  }
+                }
+              },
+              "evidence_comparison": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "evidence_id": { "type": "string" },
+                    "interpretation_a": { "type": "string" },
+                    "interpretation_b": { "type": "string" }
+                  },
+                  "required": ["evidence_id"]
+                }
+              },
+              "resolution_options": {
+                "type": "array",
+                "minItems": 2,
+                "items": {
+                  "type": "object",
+                  "required": ["id", "description", "type"],
+                  "properties": {
+                    "id": { "type": "string" },
+                    "description": { "type": "string" },
+                    "supported_by": { "type": "array", "items": { "type": "string" } },
+                    "type": { "type": "string", "enum": ["position", "compromise"] }
+                  }
+                }
+              },
+              "jarvis_assessment": { "type": "string" },
+              "strongest_option_id": { "type": "string" }
+            }
+          }
+        }
+      }
+    },
+
+    "agreement": {
+      "type": "object",
+      "required": ["meeting_id", "full", "qualified", "partial", "disagreement", "abstentions", "summary"],
+      "properties": {
+        "meeting_id": { "type": "string" },
+        "full": { "type": "array", "items": { "type": "object" } },
+        "qualified": { "type": "array", "items": { "type": "object" } },
+        "partial": { "type": "array", "items": { "type": "object" } },
+        "disagreement": { "type": "array", "items": { "type": "object" } },
+        "abstentions": { "type": "array", "items": { "type": "object" } },
+        "summary": {
+          "type": "object",
+          "required": ["full_count", "qualified_count", "partial_count", "disagreement_count", "abstention_count", "total_positions", "core_question_alignment"],
+          "properties": {
+            "full_count": { "type": "integer", "minimum": 0 },
+            "qualified_count": { "type": "integer", "minimum": 0 },
+            "partial_count": { "type": "integer", "minimum": 0 },
+            "disagreement_count": { "type": "integer", "minimum": 0 },
+            "abstention_count": { "type": "integer", "minimum": 0 },
+            "total_positions": { "type": "integer", "minimum": 0 },
+            "core_question_alignment": { "type": "string", "enum": ["unanimous", "qualified", "partial", "split"] },
+            "implementation_alignment": { "type": "string", "enum": ["unanimous", "qualified", "partial", "split"] }
+          }
+        }
+      }
+    },
+
+    "votes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["meeting_id", "participant", "persona_id", "vote", "confidence", "reasoning", "agreement_category"],
+        "properties": {
+          "meeting_id": { "type": "string" },
+          "participant": { "type": "string" },
+          "persona_id": { "type": "string" },
+          "vote": { "type": "string", "enum": ["approve", "reject", "approve-with-conditions", "abstain"] },
+          "confidence": { "type": "number", "minimum": 0.0, "maximum": 1.0 },
+          "evidence_count": { "type": "integer", "minimum": 0 },
+          "reasoning": { "type": "string" },
+          "agreement_category": { "type": "string", "enum": ["full", "qualified", "partial", "disagreement", "abstention"] },
+          "agreement_group_id": { "type": "string" }
+        }
+      }
+    },
+
+    "synthesis": {
+      "type": "object",
+      "required": ["text"],
+      "properties": {
+        "text": { "type": "string" },
+        "strongest_arguments": { "type": "array", "items": { "type": "string" } },
+        "strongest_counterarguments": { "type": "array", "items": { "type": "string" } },
+        "cross_examination_resolution": { "type": "string" },
+        "dissenting_views": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+
+    "confidence": {
+      "type": "object",
+      "required": ["meeting_id", "meeting_type", "weights", "evidence_quality", "persona_convergence", "argument_strength", "counterargument_weakness", "meeting_confidence", "confidence_label"],
+      "properties": {
+        "meeting_id": { "type": "string" },
+        "meeting_type": { "type": "string", "enum": ["risk-assessment", "strategic-direction", "technical-decision", "ethical-review", "default"] },
+        "weights": {
+          "type": "object",
+          "required": ["evidence_quality", "persona_convergence", "argument_strength", "counterargument_weakness"],
+          "properties": {
+            "evidence_quality": { "type": "number", "minimum": 0.0, "maximum": 1.0 },
+            "persona_convergence": { "type": "number", "minimum": 0.0, "maximum": 1.0 },
+            "argument_strength": { "type": "number", "minimum": 0.0, "maximum": 1.0 },
+            "counterargument_weakness": { "type": "number", "minimum": 0.0, "maximum": 1.0 }
+          }
+        },
+        "evidence_quality": { "$ref": "#/$defs/confidenceComponent" },
+        "persona_convergence": { "$ref": "#/$defs/confidenceComponent" },
+        "argument_strength": { "$ref": "#/$defs/confidenceComponent" },
+        "counterargument_weakness": { "$ref": "#/$defs/confidenceComponent" },
+        "meeting_confidence": { "type": "number", "minimum": 0.0, "maximum": 1.0 },
+        "confidence_label": { "type": "string", "enum": ["VERY HIGH", "HIGH", "MEDIUM", "LOW", "VERY LOW"] }
+      }
+    },
+
+    "recommendation": {
+      "type": "object",
+      "required": ["id", "text", "status", "evidence_ids", "type"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^council-recommendation-.*$" },
+        "text": { "type": "string" },
+        "status": { "type": "string", "const": "candidate" },
+        "evidence_ids": { "type": "array", "items": { "type": "string" } },
+        "type": { "type": "string", "const": "council-recommendation" }
+      }
+    },
+
+    "reversal_conditions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "condition", "threshold", "currently_met", "evidence_required", "raised_by", "source_meeting_id"],
+        "properties": {
+          "id": { "type": "string", "pattern": "^REV-" },
+          "condition": { "type": "string" },
+          "threshold": { "type": "string" },
+          "currently_met": { "type": "boolean" },
+          "evidence_required": { "type": "string" },
+          "raised_by": { "type": "string" },
+          "source_meeting_id": { "type": "string" },
+          "source_position_id": { "type": "string" }
+        }
+      }
+    },
+
+    "flags": { "type": "array", "items": { "type": "string" } }
+  },
+  "$defs": {
+    "confidenceComponent": {
+      "type": "object",
+      "required": ["score", "weight", "calculation"],
+      "properties": {
+        "score": { "type": "number", "minimum": 0.0, "maximum": 1.0 },
+        "weight": { "type": "number", "minimum": 0.0, "maximum": 1.0 },
+        "calculation": { "type": "string" },
+        "inputs": { "type": "array", "items": { "type": "string" } }
+      }
+    }
+  }
+}

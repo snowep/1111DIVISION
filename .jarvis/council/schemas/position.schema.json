@@ -1,0 +1,90 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "jarvis://schemas/position.schema.json",
+  "title": "Position",
+  "description": "A single persona's reasoning output. Generated sequentially. Companion to api-schema.md Schema 2.",
+  "type": "object",
+  "required": [
+    "id", "meeting_id", "persona_id", "persona_name", "vote", "confidence",
+    "reasoning", "supporting_arguments", "counterarguments",
+    "assumptions", "evidence_used", "reversal_conditions",
+    "activated_at", "phase"
+  ],
+  "properties": {
+    "id": { "type": "string", "pattern": "^POS-.*-.*$" },
+    "meeting_id": { "type": "string", "pattern": "^MEETING-\\d{8}-\\d+$" },
+    "persona_id": { "type": "string", "pattern": "^persona\\.[a-z0-9-]+$" },
+    "persona_name": { "type": "string", "minLength": 1 },
+    "vote": { "type": "string", "enum": ["approve", "reject", "approve-with-conditions", "abstain"] },
+    "confidence": { "type": "number", "minimum": 0.0, "maximum": 1.0, "description": "Self-assessed by persona, not computed" },
+    "reasoning": { "type": "string", "minLength": 1 },
+    "supporting_arguments": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/argument" }
+    },
+    "counterarguments": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/argument" }
+    },
+    "conditions": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Required if vote=approve-with-conditions"
+    },
+    "assumptions": { "type": "array", "items": { "type": "string" } },
+    "evidence_used": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/evidenceCitation" }
+    },
+    "reversal_conditions": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/reversalCondition" },
+      "minItems": 1,
+      "description": "Mandatory: every position must articulate ≥1"
+    },
+    "activated_at": { "type": "string", "format": "date-time" },
+    "deactivated_at": { "type": ["string", "null"], "format": "date-time" },
+    "phase": { "type": "string", "enum": ["pre-meeting", "in-meeting"] },
+    "flags": { "type": "array", "items": { "type": "string" } }
+  },
+  "$defs": {
+    "argument": {
+      "type": "object",
+      "required": ["id", "text", "strength"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^ARG-" },
+        "text": { "type": "string", "minLength": 1 },
+        "evidence_ids": { "type": "array", "items": { "type": "string", "pattern": "^EVD-\\d+$" } },
+        "strength": { "type": "string", "enum": ["strong", "moderate", "weak"] }
+      }
+    },
+    "evidenceCitation": {
+      "type": "object",
+      "required": ["evidence_id", "interpretation"],
+      "properties": {
+        "evidence_id": { "type": "string", "pattern": "^EVD-\\d+$" },
+        "interpretation": { "type": "string", "minLength": 1 }
+      }
+    },
+    "reversalCondition": {
+      "type": "object",
+      "required": ["id", "condition", "threshold", "currently_met", "evidence_required"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^REV-" },
+        "condition": { "type": "string", "minLength": 1 },
+        "threshold": { "type": "string", "minLength": 1 },
+        "currently_met": { "type": "boolean" },
+        "evidence_required": { "type": "string" }
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "vote": { "const": "approve-with-conditions" } } },
+      "then": {
+        "required": ["conditions"],
+        "properties": { "conditions": { "minItems": 1 } }
+      }
+    }
+  ]
+}
