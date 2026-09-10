@@ -97,77 +97,132 @@ Simulated personas (Security Architect, Systems Engineer, etc.) are **reasoning 
 ## Three Surfaces
 
 ```text
-/council/                    # Canonical configuration
-├── config.yaml              # Meeting settings
-├── seats/                   # Seat definitions
-│   ├── fixed/               # Permanent seats
-│   ├── rotating/            # Topic-specific seats
-│   └── reserved/            # Future expansion
-└── decisions/               # Active decisions
+/council/                    # Canonical configuration (future)
+└── decisions/               # Active decisions (see decisions.md)
 
 .jarvis/council/             # Live meeting state
-├── meetings/                # Current/recent meetings
-│   └── MEETING-20260910-001/
-│       ├── agenda.md
-│       ├── participants.md
-│       ├── positions.md     # Each persona's position
-│       ├── votes.md
-│       └── conclusion.md
+├── meeting-protocol.md      # 10-step operational procedure (v2, Phase 9)
+├── meetings.md              # Completed + queued meetings
+├── state.md                 # Operational state
+├── decisions.md             # Council-derived decisions
+├── templates/               # Meeting templates (v2)
+│   ├── agenda.md            # Question, participants, meeting type, weights
+│   ├── evidence.md          # Two-phase evidence registry
+│   ├── positions.md         # Positions with evidence links + reversal conditions
+│   ├── cross-examination.md # Structured conflict analysis
+│   ├── votes.md             # Votes + agreement classification
+│   └── conclusion.md        # Synthesis + confidence propagation + reversal tracker
 └── README.md
 
 vault/                       # Summarized institutional knowledge
-└── 06 - Methodology/
-    └── council/             # Meeting summaries
+└── 08 - Logs/Council Meetings/  # Meeting summaries
 ```
 
-## Meeting Format
+## Meeting Structure (v2, Phase 9)
+
+Each meeting is a folder with six files:
+
+```text
+.jarvis/council/meetings/MEETING-YYYYMMDD-SEQ/
+├── agenda.md              ← question, participants, meeting type, confidence weights
+├── evidence.md            ← evidence registry (populated in Step 4)
+├── positions.md           ← each persona's position (appended in Step 5)
+├── cross-examination.md   ← conflict analysis (written in Step 6)
+├── votes.md               ← votes + agreement classification (written in Step 7)
+└── conclusion.md          ← synthesis + confidence + reversal conditions (Step 9)
+```
 
 ### Agenda
 
 ```yaml
-meeting_id: MEETING-20260910-001
+meeting_id: MEETING-20260911-001
+status: in_progress
+created: 2026-09-11
 topic: Authentication Architecture Review
-scheduled: 2026-09-10T14:00:00Z
-participants:
-  - Security Architect
-  - Systems Engineer
-  - Business Strategist
 mode: council
+meeting_type: risk-assessment
 ```
+
+### Evidence Registry
+
+```yaml
+id: EVD-001
+source: project-artifact
+type: project-artifact
+description: <what it says>
+confidence: 0.95
+verified: yes
+```
+
+Two-phase model: Phase 1 (JARVIS-collected, before any persona activates) + Phase 2 (persona-generated `council-vm`/`inference`, cited only by the registering persona).
 
 ### Positions (one per participant)
 
 ```yaml
 participant: Security Architect
 persona_id: persona.security_architect
-position: approve with conditions
+position: approve-with-conditions
 confidence: 0.9
-supporting_arguments:
-  - "Rate limiting is critical for security"
-counterarguments:
-  - "Rate limiting adds latency"
-recommendation: Implement rate limiting with progressive delays
+evidence_used: [EVD-001, EVD-003]
+supporting_arguments: [...]
+counterarguments: [...]
+conditions: ["Rate limiting at launch"]
+reversal_conditions:
+  - condition: "Scalper rate > 30%"
+    threshold: quantitative
+    currently_met: false
 ```
 
-### Votes
+### Cross-Examination (mandatory when material conflicts exist)
 
 ```yaml
-participant: Security Architect
-vote: approve
-confidence: 0.9
-reasoning: "Rate limiting is critical for security"
+conflict_id: CONFLICT-001
+disagreement: "Whether rate limiting is necessary at launch"
+participants: [Security Architect, Business Strategist]
+resolution_options: [A, B, C]
+jarvis_assessment: "A is strongest..."
+```
+
+### Votes + Agreement Classification
+
+```yaml
+full_agreement: 0
+gualified_agreement: 2 groups
+partial_agreement: 1 item
+abstentions: 0
+vote_result: "5/5 approve (with varying conditions)"
 ```
 
 ### Conclusion
 
 ```yaml
-meeting_id: MEETING-20260910-001
+meeting_id: MEETING-20260911-001
 status: complete
-vote_result: 8/10 approve rate limiting
-recommendation: Implement rate limiting with progressive delays
+meeting_type: strategic-direction
+recommendation: <best defensible option>
 type: council-recommendation
 status: candidate  ← NOT active
+confidence_propagation:
+  evidence_quality: 0.82
+  meeting_confidence: 0.827
+  confidence_label: HIGH
+reversal_conditions: [...tracker...]
 ```
+
+## Meeting Protocol
+
+Full 10-step procedure: `.jarvis/council/meeting-protocol.md`
+
+1. Define the question
+2. Select participants and meeting type
+3. Create the meeting record
+4. Collect evidence (pre-meeting, JARVIS-only)
+5. Load each persona sequentially
+6. Cross-examination (mandatory when conflicts exist)
+7. Agreement classification
+8. JARVIS synthesis
+9. Confidence propagation and conclusion
+10. Record and report
 
 ## Rules
 

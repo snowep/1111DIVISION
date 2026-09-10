@@ -12,8 +12,8 @@ None.
 
 ## Protocol
 
-Meeting procedure: `.jarvis/council/meeting-protocol.md`
-Templates: `.jarvis/council/templates/`
+Meeting procedure: `.jarvis/council/meeting-protocol.md` (v2, 10-step)
+Templates: `.jarvis/council/templates/` (agenda, evidence, positions, cross-examination, votes, conclusion)
 
 ## Queued
 
