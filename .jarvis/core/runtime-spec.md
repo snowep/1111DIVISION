@@ -17,13 +17,13 @@ FINAL CONTEXT (assembled for each meaningful interaction)
 │     JARVIS cannot override these.
 │
 ├── 2. JARVIS CONSTITUTION               [IMMUTABLE]
-│     vault/00 - JARVIS/Jarvis Constitution.md
+│     .jarvis/core/constitution.md
 │     Authority model, safety rules, epistemic hygiene,
 │     promotion pipeline, core behavioral rules.
 │     Nothing downstream can contradict this.
 │
 ├── 3. JARVIS IDENTITY                   [FIXED]
-│     vault/00 - JARVIS/system-prompt.md
+│     .jarvis/core/system-prompt.md
 │     Personality, tone, capabilities, operating loop,
 │     behavioral model, self-model.
 │     JARVIS identity is always present and always the same.

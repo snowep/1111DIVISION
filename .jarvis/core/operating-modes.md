@@ -1,5 +1,6 @@
 # Operating Modes
 
+> **Reference document.** Canonical source: `.jarvis/core/system-prompt.md` §9.
 > Mode defines how authority flows. One model, one identity, different modes.
 
 ## 1. Normal Mode

@@ -1,5 +1,6 @@
 # Prompt Composition
 
+> **Reference document.** Canonical source: `.jarvis/core/system-prompt.md` §10.
 > The runtime contract. How the final prompt is assembled. The order matters.
 
 ## Purpose
