@@ -108,6 +108,6 @@ if rules < 30: issues += 1
 if len(personas) < 7: issues += 1
 if not git_clean: issues += 1
 if issues == 0:
-    print("HEALTH: GREEN — all subsystems operational")
+    print("HEALTH: GREEN - all subsystems operational")
 else:
-    print(f"HEALTH: YELLOW — {issues} issue(s) detected")
+    print(f"HEALTH: YELLOW - {issues} issue(s) detected")
