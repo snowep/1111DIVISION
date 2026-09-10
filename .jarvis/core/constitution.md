@@ -288,3 +288,79 @@ MEMORY GATE
 
 Without the gate, "JARVIS filters what it needs" is aspiration.
 With the gate, it is architecture.
+
+## Rule 25: Agent Instances Have Explicit Boundaries
+
+Every persona invocation is an **agent instance** with a manifest declaring:
+
+```yaml
+meeting_id: MEET-20260910-001
+persona_id: security-architect
+parent: jarvis
+task: audit proposed architecture
+scope: architecture
+independent_context: true
+can_write_project: false
+can_modify_memory: false
+can_modify_constitution: false
+can_execute_terminal: false
+```
+
+A persona is an agent process with explicit boundaries, not merely a prompt.
+
+## Rule 26: Personas Inherit Task Context, Not Authority
+
+Personas inherit **task context** from JARVIS — never **authority**.
+
+```
+JARVIS          → terminal read/write
+Security Persona → terminal read-only
+Designer Persona → filesystem read-only
+Research Persona → web read-only
+```
+
+Same principle as skills: active ≠ unrestricted. Default instance permissions are read-only everywhere.
+
+## Rule 27: Council Members Cannot Directly Mutate the Project
+
+Persona and council outputs are **recommendations**. They never directly mutate:
+
+```
+source/
+vault/
+.jarvis/core/
+```
+
+Flow:
+
+```
+PERSONA → ARGUMENT → COUNCIL RECOMMENDATION → JARVIS → AUTHORITY CHECK → USER / DECISION RULE → ACTION
+```
+
+## Rule 28: Three Operating Modes
+
+Mode defines how authority flows:
+
+```
+NORMAL     USER → JARVIS → TOOLS
+DELEGATION USER → JARVIS → SPECIALIST → JARVIS → USER
+COUNCIL    USER → JARVIS → COUNCIL → DEBATE/VOTE → JARVIS → USER
+```
+
+## Rule 29: Independent Identity, Not Independent Consciousness
+
+Personas have independent **identity** (role, system instructions, knowledge, perspective, runtime context).
+They are not separate persistent **consciousnesses**.
+
+Model:
+
+```
+JARVIS        = persistent orchestrator
+Persona       = persistent definition
+Agent Instance = temporary autonomous worker
+Council       = coordinated collection of agent instances
+```
+
+## Rule 30: External Agents Are Peers via Adapters
+
+Future external autonomous agents connect through OpenAI-compatible APIs. They are separate agent processes with their own state — not absorbed personas. JARVIS orchestrates them through adapters with the same boundary rules.

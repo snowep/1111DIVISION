@@ -1,6 +1,6 @@
 # Council
 
-> Votes stay candidates. Never auto-become truth.
+> Recommendations, never mutations. Votes stay candidates.
 
 ## Three Surfaces
 
@@ -26,6 +26,42 @@
 vault/                       # Summarized institutional knowledge
 └── 06 - Methodology/
     └── council/             # Meeting summaries
+```
+
+## Non-Mutation Flow
+
+Council members **cannot directly change the project**.
+
+```
+PERSONA
+   ↓
+ARGUMENT
+   ↓
+COUNCIL RECOMMENDATION
+   ↓
+JARVIS
+   ↓
+AUTHORITY CHECK
+   ↓
+USER / DECISION RULE
+   ↓
+ACTION
+```
+
+Even:
+
+```
+Steve Jobs: "Delete the existing architecture."
+Virgil:     "Replace it with X."
+Security:   "Block Y."
+```
+
+Those are **recommendations**. They never directly mutate:
+
+```
+source/
+vault/
+.jarvis/core/
 ```
 
 ## Epistemic Model
@@ -69,22 +105,25 @@ JARVIS acts on this as truth
 
 This is an authority loophole. The council is a reasoning tool, not a decision-maker.
 
-### Safe flow
+## Council Members Are Agent Instances
 
+Each council member is an **agent instance** with explicit boundaries:
+
+```yaml
+instance_id: AGT-MEET-20260910-001-SEC
+persona_id: security-architect
+parent: jarvis
+task: review the proposed architecture
+scope: security
+independent_context: true
+can_write_project: false
+can_modify_memory: false
+can_modify_constitution: false
+can_execute_terminal: false
 ```
-Council vote: 8/10 → architecture A
-    ↓
-type: council-recommendation
-status: candidate
-    ↓
-User reviews recommendation
-    ↓
-User approves: "Yes, use architecture A"
-    ↓
-type: decision
-status: active
-authority: user-explicit
-```
+
+A council is a **coordinated collection of agent instances**.
+Each works in isolation (context, evidence, reasoning, arguments), then votes. JARVIS synthesizes.
 
 ## Meeting Format
 
@@ -99,6 +138,7 @@ seats:
   - Systems Engineer
   - Creative Director
   - User Advocate
+mode: council
 ```
 
 ### Arguments
@@ -139,8 +179,9 @@ status: candidate  ← NOT active
 ## Rules
 
 1. **Council votes stay candidates** — never auto-become truth
-2. **Decision-authority required** — user must approve to make active
-3. **Reasoning preserved** — arguments and counterarguments are kept
-4. **Audit trail** — meeting events are logged
-5. **Seats are perspectives** — not separate consciousnesses
-6. **Disagreement is healthy** — fake consensus is worse than disagreement
+2. **Council members never mutate the project** — recommendations only
+3. **Decision-authority required** — user must approve to make active
+4. **Reasoning preserved** — arguments and counterarguments are kept
+5. **Audit trail** — meeting events are logged
+6. **Seats are perspectives** — not separate consciousnesses
+7. **Disagreement is healthy** — fake consensus is worse than disagreement

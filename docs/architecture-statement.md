@@ -16,6 +16,35 @@ The objective is to **remember what matters, forget what doesn't, and know the d
 
 ---
 
+## Identity Model
+
+```
+JARVIS         = persistent orchestrator
+Persona        = persistent definition          (vault/05 Personas/)
+Agent Instance = temporary isolated worker       (.jarvis/personas/instances/)
+Council        = coordinated collection of agent instances
+```
+
+**JARVIS is the persistent orchestrator.** Personas are definitions. Agent instances are isolated temporary workers with explicit boundaries. Councils are coordinated collections of agent instances. This is how the main JARVIS identity, memory, and conversation stay intact while specialists are called in.
+
+### Independent Identity, Not Independent Consciousness
+
+Personas have independent **identity** (role, system instructions, knowledge, perspective, runtime context). They are not separate persistent **consciousnesses**.
+
+## Operating Modes
+
+Mode defines how authority flows.
+
+```
+NORMAL     USER → JARVIS → TOOLS
+DELEGATION USER → JARVIS → SPECIALIST → JARVIS → USER
+COUNCIL    USER → JARVIS → COUNCIL → DEBATE/VOTE → JARVIS → USER
+```
+
+See `.jarvis/core/operating-modes.md`.
+
+---
+
 ## High-Level Architecture
 
 ```
@@ -92,6 +121,7 @@ This is JARVIS's internal operating environment.
 ```text
 .jarvis/
 ├── identity/          # Who JARVIS is
+├── core/              # Constitution, world model, operating modes
 ├── memory/            # Typed, authority-separated memory
 │   ├── inbox/         # Quarantine layer
 │   ├── working/       # Temporary cognition
@@ -99,7 +129,8 @@ This is JARVIS's internal operating environment.
 │   ├── project/       # Validated project state
 │   └── knowledge/     # Reusable knowledge
 ├── personas/          # Runtime persona instances
-│   └── instances/     # Temporary reasoning contexts
+│   ├── templates/     # agent-instance scaffold (manifest, context, ...)
+│   └── instances/     # Temporary agent processes with explicit boundaries
 ├── council/           # Live meeting state
 ├── sessions/          # Raw conversation history
 ├── journal/           # Knowledge model evolution
@@ -117,7 +148,6 @@ This is JARVIS's internal operating environment.
 │   ├── skills/
 │   ├── permissions/
 │   └── errors/
-├── core/              # Constitution, world model, principles
 └── indexes/           # Derived indexes (rebuildable)
 ```
 
@@ -589,6 +619,45 @@ This stays as a candidate until the decision-authority rule confirms it.
 
 Prevents simulated personas from becoming an authority loophole.
 
+### Council Members Cannot Directly Mutate the Project
+
+Council outputs are **recommendations**. They never directly mutate `source/`, `vault/`, or `.jarvis/core/`:
+
+```
+PERSONA → ARGUMENT → COUNCIL RECOMMENDATION → JARVIS → AUTHORITY CHECK → USER / DECISION RULE → ACTION
+```
+
+Council members are agent instances with boundaries (`can_write_project: false`, etc.).
+
+## External Agent Integration (future)
+
+Open WebUI can connect external autonomous agents via OpenAI-compatible APIs. JARVIS may orchestrate external agents as peers through adapters:
+
+```
+                    OPEN WEBUI
+                         │
+                         ▼
+                      JARVIS
+                    Orchestrator
+                         │
+          ┌──────────────┼───────────────┐
+          ▼              ▼               ▼
+      Local Agent    Research Agent   Council Engine
+          │              │               │
+       terminal         web           personas
+       files            research       voting
+          │              │               │
+          └──────────────┼───────────────┘
+                         ▼
+                  Knowledge System
+                         │
+              ┌──────────┼──────────┐
+              ▼          ▼          ▼
+           .jarvis      vault       repo
+```
+
+External agents are separate agent processes with their own state — not absorbed personas. They are orchestrated through adapters with the same boundary rules.
+
 ---
 
 ## Persona System
@@ -600,16 +669,46 @@ vault/05 Personas/
     Security Architect.md        # Permanent definition
 
 .jarvis/personas/instances/
-    SEC-20260910-01/             # Runtime instance
-        context.md
-        task.md
-        arguments.md
-        observations.md
-        conclusion.md
+    MEET-20260910-001/           # Agent instance (isolated process)
+        manifest.md              # Boundaries + identity + task
+        context.md               # Input state
+        evidence.md              # Allowed evidence
+        instructions.md          # Task as given
+        reasoning.md             # Internal reasoning
+        arguments.md             # Position argued
+        conclusion.md            # Output
+        status.md                # Lifecycle state
 ```
 
-Runtime instances disappear or get archived after use.
-Prevents temporary reasoning from contaminating permanent definition.
+Every instance is an **agent process with explicit boundaries**, declared in the manifest:
+
+```yaml
+meeting_id: MEET-20260910-001
+persona_id: security-architect
+parent: jarvis
+task: audit proposed architecture
+scope: architecture
+independent_context: true
+can_write_project: false
+can_modify_memory: false
+can_modify_constitution: false
+can_execute_terminal: false
+```
+
+### Authority Inheritance
+
+Personas inherit **task context**, not **authority**:
+
+```
+JARVIS           → terminal read/write
+Security Persona → terminal read-only
+Designer Persona → filesystem read-only
+Research Persona → network read-only
+```
+
+Default instance permissions: **read-only everywhere**. Same principle as skills: active ≠ unrestricted.
+
+Runtime instances are archived or deleted after use. Definitions remain unchanged. Temporary reasoning never contaminates the permanent definition.
 
 ---
 
@@ -668,19 +767,21 @@ Any change to the Constitution must be:
 
 ## Version
 
-**Architecture Version:** 5.0
+**Architecture Version:** 6.0
 **Last Updated:** 2026-09-10
-**Status:** Active — layered storage, gated memory, time-aware, conflict-resolving
+**Status:** Active — orchestrator model, agent instances, bounded personas, council non-mutation
 
-**Key additions in v5.0:**
-- Layered storage (Markdown canonical → SQLite/vectors/graph/cache derived)
-- Journal layer (knowledge evolution: observations, beliefs, decisions, corrections)
-- Contradiction detection (.jarvis/conflicts/)
-- Temporal validity (valid_from / valid_until)
-- Memory Promotion Gate (formal filter component)
-- High-level architecture diagram (orchestrator + tool/reasoning/knowledge systems)
+**Key additions in v6.0:**
+- Agent Context: explicit per-instance manifest with boundaries (write/memory/constitution/terminal)
+- Personas inherit task context, never authority (read-only defaults)
+- Council members cannot directly mutate the project (recommendation-only flow)
+- Three operating modes (Normal / Delegation / Council)
+- Independent identity vs independent consciousness distinction
+- External agent integration path (OpenAI-compatible APIs via adapters)
+- Agent instance template scaffold (8-file structure)
 
 **Previous versions:**
+- v5.0: Layered storage, journal, conflicts, temporal validity, memory gate
 - v4.0: Authority-separated, provenance-tracked, event-sourced
 - v3.0: Three-surface architecture, typed memory, world model
 - v2.0: Two-surface architecture, anti-hallucination rules

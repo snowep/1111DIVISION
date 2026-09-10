@@ -1,12 +1,10 @@
 # Personas
 
-> Permanent definitions in vault. Temporary instances in .jarvis.
+> Definitions are permanent. Instances are isolated agent processes with explicit boundaries.
 
 ## Two Layers
 
-### Definition (vault)
-
-Permanent persona definition. Never changes during runtime.
+### Definition (vault) — permanent
 
 ```text
 vault/05 Personas/
@@ -15,123 +13,103 @@ vault/05 Personas/
 │   ├── Systems Engineer.md
 │   ├── Creative Director.md
 │   └── ...
-├── Specialists/
-│   └── ...
 └── README.md
 ```
 
-### Instance (.jarvis)
+Definitions are never modified at runtime.
 
-Temporary runtime context. Created for specific tasks, archived after use.
+### Instance (.jarvis) — temporary agent process
 
 ```text
-.jarvis/personas/
-├── instances/
-│   ├── SEC-20260910-01/
-│   │   ├── context.md      # Why this persona was invoked
-│   │   ├── task.md         # What it needs to analyze
-│   │   ├── arguments.md    # Its reasoning
-│   │   ├── observations.md # What it found
-│   │   └── conclusion.md   # Its recommendation
-│   ├── SYS-20260910-01/
-│   │   └── ...
-│   └── README.md
-└── README.md
+.jarvis/personas/instances/
+└── MEET-20260910-001/
+    ├── manifest.md       # Boundaries, identity, task
+    ├── context.md        # What is happening
+    ├── evidence.md       # Evidence it may use
+    ├── instructions.md   # What it was told to do
+    ├── reasoning.md      # How it reasons
+    ├── arguments.md      # What it argues (council input)
+    ├── conclusion.md     # What it concludes (output)
+    └── status.md         # Lifecycle state
 ```
+
+## Agent Context
+
+An instance is an **agent process with explicit boundaries**, not merely a prompt.
+
+The **manifest** declares everything JARVIS needs to know about the instance:
+
+```yaml
+meeting_id: MEET-20260910-001
+instance_id: AGT-MEET-20260910-001-SEC
+persona_id: security-architect
+persona_name: Security Architect
+parent: jarvis
+task: audit proposed authentication architecture
+scope: architecture
+independent_context: true
+can_write_project: false
+can_modify_memory: false
+can_modify_constitution: false
+can_execute_terminal: false
+```
+
+### Manifest Fields
+
+| Field | Meaning |
+|-------|---------|
+| `instance_id` | Unique ID for this agent process |
+| `persona_id` | Which persona definition it instantiates |
+| `parent` | Who spawned it (always `jarvis`) |
+| `task` | What it must do |
+| `scope` | What domain it operates in |
+| `independent_context` | Has own context/evidence/reasoning, isolated from other instances |
+| `can_write_project` | May it mutate source/vault? (default false) |
+| `can_modify_memory` | May it write memory? (default false) |
+| `can_modify_constitution` | May it change rules? (default false) |
+| `can_execute_terminal` | May it run commands? (default false) |
+
+## File Roles
+
+| File | Role |
+|------|------|
+| `manifest.md` | Boundaries + identity + task |
+| `context.md` | Input state — what is happening |
+| `evidence.md` | What evidence the instance may use |
+| `instructions.md` | The task as given by JARVIS |
+| `reasoning.md` | The instance's internal reasoning |
+| `arguments.md` | Position it argues (for council) |
+| `conclusion.md` | Its output |
+| `status.md` | Lifecycle state and history |
+
+## Authority Model
+
+Personas inherit **task context**, not **authority**.
+
+```
+JARVIS           → terminal read/write
+Security Persona → terminal read-only
+Designer Persona → filesystem read-only
+Research Persona → network read-only
+```
+
+Default instance permissions: **read-only everywhere**.
+
+Same principle as skills: active ≠ unrestricted.
 
 ## Lifecycle
 
 ```
-1. User requests persona analysis
-    ↓
-2. JARVIS loads definition from vault
-    ↓
-3. JARVIS creates instance in .jarvis/personas/instances/
-    ↓
-4. Instance performs analysis
-    ↓
-5. Instance produces conclusion
-    ↓
-6. Instance is archived or deleted
-    ↓
-7. Definition remains unchanged
+1. User requests specialized analysis
+2. JARVIS loads persona definition from vault
+3. JARVIS creates instance:
+   manifest.md + context.md + instructions.md (from templates/)
+4. Instance performs isolated work
+   (reasoning.md, evidence.md, arguments.md)
+5. Instance writes conclusion.md
+6. JARVIS synthesizes
+7. Instance is archived or deleted
+8. Definition remains unchanged
 ```
 
-## Why This Matters
-
-**Without this separation:**
-
-- Temporary reasoning contaminates permanent definition
-- Persona "learns" from one-off analysis
-- Definition becomes polluted with session-specific context
-
-**With this separation:**
-
-- Definition is stable, versioned, curated
-- Instance is disposable, temporary, focused
-- No cross-contamination
-
-## Instance Format
-
-```yaml
-# .jarvis/personas/instances/SEC-20260910-01/context.md
-
----
-instance_id: SEC-20260910-01
-persona: Security Architect
-invoked: 2026-09-10T14:30:00Z
-task: Review authentication architecture
-status: active
----
-
-## Context
-
-User requested security review of authentication system.
-This is a one-time analysis, not ongoing monitoring.
-```
-
-```yaml
-# .jarvis/personas/instances/SEC-20260910-01/conclusion.md
-
----
-instance_id: SEC-20260910-01
-persona: Security Architect
-completed: 2026-09-10T15:00:00Z
-status: complete
----
-
-## Conclusion
-
-Found 3 critical vulnerabilities:
-1. ...
-2. ...
-3. ...
-
-## Recommendation
-
-Immediate action required on #1 and #2.
-```
-
-## Archival
-
-After use, instances can be:
-
-1. **Deleted** — if the analysis is no longer relevant
-2. **Archived** — if the analysis might be referenced later
-
-Archived instances move to:
-
-```text
-.jarvis/personas/archived/
-├── SEC-20260910-01/
-│   └── ...
-└── README.md
-```
-
-## Rules
-
-1. **Definitions are permanent** — never modified by instances
-2. **Instances are temporary** — created for tasks, deleted/archived after
-3. **No cross-contamination** — instance reasoning stays in instance
-4. **Audit trail** — instance creation and conclusion are logged
-5. **User control** — user can request specific persona for analysis
+Scaffolds available at `.jarvis/personas/templates/agent-instance/`.
