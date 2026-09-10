@@ -1,0 +1,6 @@
+# Obsidian config
+.obsidian/
+
+# Source data (large, personal)
+*.txt
+*.json
