@@ -733,6 +733,50 @@ domains: [product, branding, simplicity]
 
 ---
 
+## Prompt Composition
+
+The final prompt context is assembled in this order. Lower layers cannot override higher layers:
+
+```
+1. PLATFORM CONSTRAINTS     (immutable)
+2. CONSTITUTION             (cannot be overridden)
+3. SYSTEM PROMPT            (canonical behavioral spec)
+4. WORLD MODEL              (derived, rebuildable)
+5. RELEVANT MEMORY          (with provenance)
+6. RELEVANT SKILLS          (capability, not identity)
+7. TASK CONTEXT             (current request, history)
+8. PERSONA OVERLAY          (perspective, not authority)
+9. USER REQUEST             (specific trigger)
+```
+
+A persona overlay (layer 8) can never override the Constitution (layer 2). A skill (layer 6) can never rewrite identity (layer 3). This is a runtime contract — the bridge between architecture and actual execution.
+
+See `.jarvis/core/prompt-composition.md` for the full specification.
+
+---
+
+## Persona Authoring Lifecycle
+
+JARVIS can create new persona definitions, but creating a persona does not grant it authority.
+
+```
+CREATE → VALIDATE → REGISTER → DISCOVERABLE → ACTIVATABLE → REVIEW → DEPRECATE
+```
+
+| Phase | What happens |
+|-------|-------------|
+| CREATE | JARVIS writes a new definition file in `definitions/` |
+| VALIDATE | Check YAML frontmatter, required sections, no conflicts |
+| REGISTER | Add to `registry.md` with domains and metadata |
+| DISCOVERABLE | Available in the persona library for selection |
+| ACTIVATABLE | Can be loaded as an overlay when requested |
+| REVIEW | Periodic review of whether persona is still useful |
+| DEPRECATE | Mark `status: deprecated`, remove from registry (user approval required) |
+
+Authority is orthogonal to existence. A persona can exist and have zero authority over JARVIS behavior.
+
+---
+
 ## Skill Permissions
 
 Active skill ≠ can do anything.
@@ -788,9 +832,15 @@ Any change to the Constitution must be:
 
 ## Version
 
-**Architecture Version:** 7.0
+**Architecture Version:** 7.1
 **Last Updated:** 2026-09-10
 **Status:** Active — single-model overlay architecture, sequential council, structured persona definitions
+
+**Key additions in v7.1:**
+- Prompt composition specification (runtime contract — assembly order defines authority hierarchy)
+- Persona authoring lifecycle (CREATE → VALIDATE → REGISTER → DISCOVERABLE → ACTIVATABLE → REVIEW → DEPRECATE)
+- runtime.md is ephemeral current-state only (not history, crash-safe)
+- Constitution Rules 31-32: authoring lifecycle + prompt composition order
 
 **Key additions in v7.0:**
 - One model, one identity — personas are reasoning overlays, not separate agents

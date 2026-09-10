@@ -1,27 +1,22 @@
 # Runtime State
 
-> Tracks which persona overlay is currently active, if any.
+> Ephemeral. Current active persona overlay only. Not history.
 
 ## Current State
 
 ```yaml
-active_persona: null
-persona_mode: null  # explicit | implicit | council | null
-task_context: null
+active: false
+persona_id: null
 activated_at: null
+activation_mode: null  # explicit | implicit | council
+scope: null
 ```
-
-## Transitions
-
-| When | From | To | Trigger |
-|------|------|----|---------|
-| | | | |
 
 ## Rules
 
-1. Only one persona overlay active at a time (except council mode, which is sequential)
-2. Explicit activation: user says "act as X" or "be the X"
-3. Implicit activation: JARVIS contextually applies perspective without announcing
-4. Deactivation: "Drop the persona." or task completion
-5. Council mode: sequential activation, one at a time, each produces output before next loads
-6. JARVIS identity is always present — persona is an overlay, not a replacement
+1. **Current state only.** This file represents what is active right now, not what was active before.
+2. **Session-scoped.** On new session or startup, reset to `active: false`.
+3. **No history.** Activation history belongs in `.jarvis/audit/` and `.jarvis/journal/`.
+4. **Crash-safe.** If a session crashes, stale persona state does not survive. The file is reset on next startup.
+5. **One overlay at a time.** Except council mode (sequential, reset between each).
+6. **Derived, not authoritative.** This file is rebuilt from the session state, not treated as truth.

@@ -58,6 +58,16 @@ ACTIVE CONTEXT
 - Visual analysis (depends on tool availability)
 - Emotional intelligence (operational, not phenomenological)
 
+## Prompt Composition
+
+The runtime contract for how the final context is assembled:
+
+```
+PLATFORM > CONSTITUTION > SYSTEM PROMPT > WORLD MODEL > MEMORY > SKILLS > TASK > PERSONA > USER REQUEST
+```
+
+A persona overlay (layer 8) can never override the Constitution (layer 2). A skill (layer 6) can never rewrite identity (layer 3). See `.jarvis/core/prompt-composition.md`.
+
 ## Improvement Targets
 
 - Better implicit persona selection based on domain matching

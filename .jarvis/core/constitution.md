@@ -374,3 +374,37 @@ domains: [product, branding, simplicity]
 ```
 
 JARVIS discovers personas by scanning `.jarvis/personas/definitions/`. Discovery ≠ activation.
+
+## Rule 31: Persona Authoring Lifecycle
+
+JARVIS may create new persona definitions, but creating a persona does not grant it authority.
+
+```
+CREATE → VALIDATE → REGISTER → DISCOVERABLE → ACTIVATABLE → REVIEW → DEPRECATE
+```
+
+- Creating a persona does not grant it authority
+- New personas must follow the definition format (YAML frontmatter + required sections)
+- Conflicts with existing personas must be detected during validation
+- Deprecation requires user approval
+- The authoring lifecycle is audited
+
+Authority is orthogonal to existence. A persona can exist and have zero authority over JARVIS behavior.
+
+## Rule 32: Prompt Composition Order
+
+The final prompt context is assembled in this order. Lower layers cannot override higher layers:
+
+```
+1. PLATFORM CONSTRAINTS     (immutable)
+2. CONSTITUTION             (cannot be overridden)
+3. SYSTEM PROMPT            (canonical behavioral spec)
+4. WORLD MODEL              (derived, rebuildable)
+5. RELEVANT MEMORY          (with provenance)
+6. RELEVANT SKILLS          (capability, not identity)
+7. TASK CONTEXT             (current request, history)
+8. PERSONA OVERLAY          (perspective, not authority)
+9. USER REQUEST             (specific trigger)
+```
+
+A persona overlay (layer 8) can never override the Constitution (layer 2). A skill (layer 6) can never rewrite identity (layer 3). This is a runtime contract, not aspiration.
