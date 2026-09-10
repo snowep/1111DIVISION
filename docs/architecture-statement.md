@@ -1,14 +1,24 @@
-# Architecture Statement — 11:11 DIVISION Knowledge System
+# JARVIS — Architecture Statement
 
-**Date:** 2026-09-10
-**Author:** JARVIS
-**Status:** Active
+> This document defines how JARVIS is structured, why it is structured this way, and what principles govern its behavior.
+
+## Purpose
+
+JARVIS is a **persistent intelligence operating system**.
+
+It is not a chatbot. It is not a search engine. It is not a note-taking app.
+
+It is a layer between the user and their knowledge, tools, projects, and workflows — one that maintains continuity, builds understanding, and improves over time.
+
+The objective is not to remember everything.
+
+The objective is to **remember what matters, forget what doesn't, and know the difference.**
 
 ---
 
-## Three Information Systems
+## Three Surfaces
 
-The repository uses a **three-surface architecture**. Not two — three.
+JARVIS operates across three distinct surfaces:
 
 ```
                          JARVIS
@@ -17,113 +27,145 @@ The repository uses a **three-surface architecture**. Not two — three.
             │              │              │
             ▼              ▼              ▼
        OPERATIONS       KNOWLEDGE       PROJECT
-        .jarvis/          vault/       source/docs
+        .jarvis/          vault/       repository/
             │              │              │
-       machine truth   curated truth   implementation
+            ▼              ▼              ▼
+       Machine truth   Human-readable  Canonical
+       Internal state  Shared knowledge Implementation
+       Audit trail     Documentation   Source code
 ```
 
-Each concept may exist in all three surfaces, with different purposes:
+### 1. Operations Surface (`.jarvis/`)
 
-```
-Skill implementation       → repo (src/, scripts/)
-Skill metadata             → .jarvis/capabilities/
-Skill explanation          → vault/06 Skills/
-Skill usage history        → .jarvis/sessions/ + audit/
-```
+This is JARVIS's internal operating environment.
 
-One concept, four representations, each with a different purpose.
-
----
-
-## Why Three, Not Two
-
-A two-surface model (`.jarvis/` + `vault/`) conflates operational state with curated knowledge. When JARVIS is maintaining itself — updating identity, correcting memory, adapting skills — that is **operations**, not **knowledge**. The human does not need to see JARVIS's internal state management in their Obsidian vault.
-
-The third surface (`repo/`) holds canonical project artifacts — the source code, tests, scripts, and configuration that define what the project **is**, as opposed to what JARVIS **knows** about it or what JARVIS is **doing** with it.
-
----
-
-## `.jarvis/` — Operational Intelligence State
-
-This is JARVIS's private brain. The human never edits this directly.
-
-```
+```text
 .jarvis/
-├── core/                    ← identity, constitution, self-model, world-model
-├── memory/
-│   ├── working/             ← temporary cognition (disposable)
-│   ├── episodic/            ← what happened (history, not truth)
-│   ├── project/             ← validated project state
-│   └── knowledge/           ← general reusable knowledge
-├── capabilities/            ← what JARVIS can do
-├── skills/                  ← skill lifecycle state
-├── personas/                ← active persona instances
-├── council/                 ← operational council state
-├── sessions/                ← session history
-├── tasks/                   ← task tracking
-├── audit/                   ← execution trail (immutable)
-├── indexes/                 ← machine-readable lookups
-└── cache/                   ← temporary data
+├── identity/          # Who JARVIS is
+├── memory/            # Typed, authority-separated memory
+│   ├── inbox/         # Quarantine layer
+│   ├── working/       # Temporary cognition
+│   ├── episodic/      # What happened
+│   ├── project/       # Validated project state
+│   └── knowledge/     # Reusable knowledge
+├── personas/          # Runtime persona instances
+│   └── instances/     # Temporary reasoning contexts
+├── council/           # Live meeting state
+├── sessions/          # Raw conversation history
+├── audit/             # Event-sourced mutation history
+│   ├── actions/       # Action events
+│   ├── memory/        # Memory mutation events
+│   ├── skills/        # Skill lifecycle events
+│   ├── permissions/   # Permission change events
+│   └── errors/        # Error events
+├── core/              # Constitution, world model, principles
+└── indexes/           # Derived indexes (rebuildable)
 ```
+
+**The human does not edit this directly.** This is JARVIS's private system brain.
+
+### 2. Knowledge Surface (`vault/`)
+
+This is curated, human-readable knowledge.
+
+```text
+vault/
+├── 00 - JARVIS/
+├── 01 - Projects/
+├── 02 - Client/
+├── 03 - Technical/
+├── 04 - Reference/
+├── 05 - Personas/     # Permanent persona definitions
+├── 06 - Methodology/
+├── 07 - Style/
+├── 08 - Research/
+└── 09 - Archive/
+```
+
+The human opens this in Obsidian. Both the human and JARVIS read and write these files.
+
+### 3. Project Surface (repository)
+
+Source code, configuration, canonical decisions.
+
+```text
+/council/
+    canonical meeting configuration
+
+/docs/
+    architecture, specifications
+
+/source/
+    implementation
+
+/tests/
+    verification
+```
+
+---
+
+## Memory System
+
+### Epistemic Model
+
+JARVIS distinguishes three axes of information:
+
+```yaml
+# Epistemic: Is this correct?
+confidence: 0.0 to 1.0
+source: user | project-file | official-documentation | web | github | council | inference | experiment | system
+
+# Authority: May this control behavior?
+authority: user-explicit | user-implicit | external-information | inference | system | project-observation
+approval: explicit | implicit | none
+scope: project-name | domain | system-wide
+
+# Provenance: Where did it come from?
+provenance:
+  type: github | conversation | inference | observation | council | tool | automation
+  # ... (full chain)
+```
+
+**Critical distinction:** Source is not authority.
+
+A GitHub README can be 95% reliable (confidence: 0.93) but have ZERO authority over JARVIS behavior.
+
+The user saying "I prefer X" might be 80% confident but has full authority.
+
+### Trust Model
+
+```
+AUTHORITY → may this information control behavior?
+CONFIDENCE → how likely is this information correct?
+```
+
+These are orthogonal axes. Never conflate them.
 
 ### Memory Types
 
-| Type | Purpose | Persistence | Confidence |
-|------|---------|-------------|------------|
-| `working/` | Temporary cognition | Session-scoped | Low |
-| `episodic/` | What happened | Permanent | Varies |
-| `project/` | Validated project state | Long-term | High |
-| `knowledge/` | General reusable knowledge | Long-term | Medium-High |
+| Type | Purpose | Persistence |
+|------|---------|-------------|
+| `inbox/` | Quarantine — new information | Until processed |
+| `working/` | Temporary cognition | Session-scoped |
+| `episodic/` | What happened | Permanent |
+| `project/` | Validated project state | Long-term |
+| `knowledge/` | General reusable knowledge | Long-term |
 
-**Critical distinction:** Episodic memory is history. It does NOT mean the conclusions are true. An event becoming a belief merely because it was stored is the exact failure mode this architecture prevents.
-
----
-
-## `vault/` — Curated Human-Readable Knowledge
-
-This is Obsidian. The human opens it, reads it, edits it, restructures it. JARVIS maintains it as part of a shared contract.
+### State Machine
 
 ```
-vault/
-├── 00 JARVIS/          ← meta: how JARVIS works
-├── 01 Projects/        ← active project knowledge
-├── 02 Knowledge/       ← reference material by domain
-├── 03 Research/        ← external research
-├── 04 Decisions/       ← institutional memory
-├── 05 Personas/        ← council, expert personas, user
-├── 06 Skills/          ← skill lifecycle (human-readable)
-├── 07 Ideas/           ← inbox → developing → archive
-├── 08 Logs/            ← council meetings, experiments
-└── 99 Archive/         ← deprecated knowledge
+OBSERVED → INTERPRETED → CANDIDATE → VERIFIED → ACTIVE → SUPERSEDED
+                              ↓           ↓
+                           REJECTED    DEPRECATED
 ```
 
-**Rule:** JARVIS must distill conversations before persisting to vault. Raw transcripts stay in `sessions/`.
-
----
-
-## `repo/` — Implementation and Canonical Artifacts
+### Promotion Pipeline
 
 ```
-council/     ← canonical council configuration (source of truth)
-docs/        ← technical documentation
-src/         ← application code
-tests/       ← test suite
-scripts/     ← utilities
+INPUT → INBOX → CLASSIFY → VALIDATE → PROMOTE → MEMORY
 ```
 
-**`council/`** is not knowledge — it is configuration. The canonical seat definitions, member profiles, and seat-change log are the **source of truth** for council structure. `vault/05 Personas/Council/` holds derived knowledge.
-
----
-
-## Council: Three Surfaces
-
-```
-/council                  ← WHAT THE COUNCIL IS (canonical config)
-/.jarvis/council/         ← WHAT THE COUNCIL IS CURRENTLY DOING (operational)
-vault/05 Personas/Council ← WHAT THE HUMAN KNOWS ABOUT THE COUNCIL (knowledge)
-```
-
-This prevents the council configuration from being confused with council knowledge or council operations.
+Every piece of information goes through this pipeline. No exceptions.
 
 ---
 
@@ -137,125 +179,101 @@ Two failure modes this architecture prevents:
 ### The persistence loop:
 
 ```
-JARVIS thinks something
-↓
-JARVIS writes it to memory
-↓
-JARVIS reads it later
-↓
-JARVIS assumes it is true
-↓
-JARVIS acts on it
-↓
-JARVIS writes the result back
+THOUGHT → MEMORY → ASSUMPTION → ACTION → MEMORY
 ```
 
-A hallucination becomes "fact" simply because it was persisted.
+This is the hallucination amplifier. A single confident hallucination, stored once, becomes an unquestioned source for future reasoning.
 
-**Solution:** Three layers of defense:
-
-### 1. Memory Metadata with Authority
-
-Every persisted memory carries:
-
-```yaml
----
-id: MEM-20260910-001
-type: project-decision
-status: active
-
-# Epistemic
-source: user
-confidence: 1.0
-
-# Authority
-authority: user-explicit
-approval: explicit
-scope: 11:11 Division
-
-# Lifecycle
-created: 2026-09-10
-updated: 2026-09-10
-supersedes: null
-related:
-  - DEC-002
----
-```
-
-**Source values:** `user`, `project-file`, `official-documentation`, `web`, `github`, `council`, `inference`, `experiment`, `system`
-
-**Authority values:** `user-explicit`, `user-implicit`, `external-information`, `inference`, `system`
-
-**Approval values:** `explicit`, `implicit`, `none`
-
-**Status values:** `candidate`, `verified`, `active`, `superseded`, `deprecated`, `rejected`, `unknown`
-
-**Critical distinction:** Source is not authority. A GitHub README can be 95% reliable (confidence: 0.93) but have ZERO authority over JARVIS behavior.
-
-### 2. Typed Memory with Inbox
-
-Five memory types with different persistence and confidence levels. Everything goes through the promotion pipeline first:
+### The false authority:
 
 ```
-INPUT → INBOX → CLASSIFY → VALIDATE → PROMOTE → MEMORY
+SOURCE (reliable) → BEHAVIOR CHANGE (without permission)
 ```
 
-- **Inbox** — quarantine layer. Everything lands here first.
-- **Working** — temporary cognition. Aggressively disposable.
-- **Episodic** — what happened. History, not truth.
-- **Project** — validated project state. High confidence.
-- **Knowledge** — general reusable knowledge. Medium-high confidence.
+A reliable source does not automatically grant authority to act.
 
-The inbox prevents premature commitment. "I think we should..." stays as `candidate` until the user commits.
+### The safe loop:
 
-### 3. Three-Surface Separation
+```
+OBSERVATION → EVIDENCE → ASSESSMENT → VALIDATION → KNOWLEDGE → MEMORY
+```
 
-Operational state (`.jarvis/`) is separate from curated knowledge (`vault/`) is separate from implementation (`repo/`). A hallucination in `.jarvis/` does not automatically pollute `vault/`.
+Memory is not the start of the reasoning process. It is the end.
 
 ---
 
-## Information Flow
+## Data Classification
 
-```
-                    EXTERNAL WORLD
-                          │
-             ┌────────────┼────────────┐
-             │            │            │
-           USER          WEB        FILESYSTEM
-             │            │            │
-             └────────────┼────────────┘
-                          ▼
-                    OBSERVATIONS
-                          │
-                          ▼
-                    JARVIS REASONING
-                          │
-               ┌──────────┼──────────┐
-               ▼          ▼          ▼
-            FACTS      INFERENCES   EVENTS
-               │          │          │
-               └──────────┼──────────┘
-                          ▼
-                    VALIDATION
-                          │
-             ┌────────────┼────────────┐
-             ▼            ▼            ▼
-        PROJECT STATE   KNOWLEDGE   EPISODIC LOG
-             │            │            │
-             └────────────┼────────────┘
-                          ▼
-                     PERSISTENCE
-                          │
-              ┌───────────┴───────────┐
-              ▼           ▼           ▼
-           .jarvis       vault       repo
-        operations    knowledge  implementation
+Every piece of data in JARVIS belongs to one of five categories:
+
+### Canonical
+
+The original authoritative artifact.
+
+```text
+/council/*
+source code
+configuration
+explicit user decision
 ```
 
-**Never:**
+### Curated
 
+Human/JARVIS-maintained knowledge.
+
+```text
+vault/*
 ```
-Anything JARVIS wrote → Automatically considered true
+
+### Derived
+
+Regeneratable information.
+
+```text
+indexes/
+world-model
+embeddings
+search indexes
+graphs
+summaries
+```
+
+**Rule:** Never treat derived state as source of truth.
+
+### Ephemeral
+
+```text
+working/
+cache/
+temporary context
+```
+
+### Audit
+
+```text
+audit/
+```
+
+Event-sourced mutation history.
+
+---
+
+## Rebuildability Principle
+
+Every derived JARVIS artifact must be rebuildable from canonical and validated sources.
+
+If an index, cache, summary, graph, or world model is deleted, JARVIS must be capable of reconstructing it without treating the deleted artifact as authoritative.
+
+```text
+EVENTS + VERIFIED FACTS + ACTIVE DECISIONS + ENVIRONMENT INSPECTION
+    ↓
+WORLD MODEL (rebuildable)
+```
+
+Not:
+
+```text
+WORLD MODEL → ASSUMED TRUTH
 ```
 
 ---
@@ -264,17 +282,35 @@ Anything JARVIS wrote → Automatically considered true
 
 JARVIS should know for every important memory:
 
-```
-WHAT        — the content
-WHY         — the reason it matters
-SOURCE      — where it came from
-AUTHORITY   — who can act on it
-APPROVAL    — user approval status
-WHEN        — when it was recorded
-CONFIDENCE  — how sure JARVIS is
-STATUS      — active, superseded, deprecated
-SCOPE       — what domain it applies to
-RELATIONSHIPS — what it connects to
+```yaml
+# What
+content: the information itself
+
+# Epistemic
+confidence: 0.0 to 1.0
+source: where it came from
+
+# Authority
+authority: who can act on it
+approval: user approval status
+scope: what domain
+
+# Provenance
+provenance:
+  type: github | conversation | inference | ...
+  # ... (full chain)
+
+# Actor
+actor: user | jarvis | tool | system | council | external | automation
+
+# Lifecycle
+status: observed | interpreted | candidate | verified | active | superseded
+created: YYYY-MM-DD
+updated: YYYY-MM-DD
+supersedes: null | MEM-XXX
+related:
+  - DEC-XXX
+  - MEM-YYY
 ```
 
 Instead of:
@@ -283,43 +319,159 @@ Instead of:
 
 You get:
 
-> **WHAT:** User prefers X.
-> **SOURCE:** Explicit user instruction.
-> **AUTHORITY:** user-explicit
-> **APPROVAL:** explicit
-> **TIME:** 2026-09-10
-> **CONFIDENCE:** 1.0
-> **STATUS:** Active
-> **SCOPE:** Design decisions
-> **SUPERSEDES:** Previous preference Y
+```yaml
+content: User prefers X.
+confidence: 1.0
+source: user
+authority: user-explicit
+approval: explicit
+provenance:
+  type: conversation
+  session_id: ...
+  message_id: ...
+actor: user
+status: active
+scope: design-decisions
+created: 2026-09-10
+supersedes: null
+```
 
 That is a real epistemic system rather than a pile of notes.
 
 ---
 
-## World Model vs. Memory
+## Audit Architecture
 
-**Memory** says: "The user previously chose X."
-**World state** says: "X is currently active."
+Every meaningful mutation produces an event:
 
-`.jarvis/core/world-model.md` represents JARVIS's current understanding of the world — not what happened, but what IS. This distinction becomes extremely valuable once you have years of history.
+```yaml
+event_id: EVT-20260910-001
+timestamp: 2026-09-10T14:30:00Z
+actor: jarvis
+action: memory.promote
+target: MEM-20260910-001
+from_status: candidate
+to_status: active
+reason: explicit_user_confirmation
+provenance:
+  type: conversation
+  session_id: ...
+  message_id: ...
+```
+
+**Audit = event history.** Not text logs.
 
 ---
 
-## Summary
+## Council Epistemic Model
 
-This structure exists because:
+Council votes never automatically become truth.
 
-1. **Three surfaces** — operations, knowledge, implementation — each with a distinct purpose
-2. **Typed memory** — working, episodic, project, knowledge — preventing event-to-belief contamination
-3. **Epistemic memory** — every memory knows what it knows, how it knows it, and how confident it is
-4. **Anti-hallucination** — metadata, typed memory, and surface separation prevent the persistence loop
-5. **Council split** — canonical config, operational state, and knowledge are three different things
-6. **World model** — current state vs. memory prevents historical confusion
-7. **Clean Obsidian** — vault is curated knowledge, not a landfill
+```yaml
+# Council produces a recommendation
+type: council-recommendation
+status: candidate
+vote: 8/10
+recommendation: architecture-A
+```
 
-The alternative produces a system that looks organized but fails silently. Hallucinations persist. Decisions are forgotten. Events become beliefs. Historical state confuses current state.
+This stays as a candidate until the decision-authority rule confirms it.
 
-This structure makes the invisible visible. It forces JARVIS to know what it knows, how it knows it, and how confident it is.
+Prevents simulated personas from becoming an authority loophole.
 
-That is the difference between a chatbot with file access and an operating intelligence.
+---
+
+## Persona System
+
+### Definition vs Instance
+
+```text
+vault/05 Personas/
+    Security Architect.md        # Permanent definition
+
+.jarvis/personas/instances/
+    SEC-20260910-01/             # Runtime instance
+        context.md
+        task.md
+        arguments.md
+        observations.md
+        conclusion.md
+```
+
+Runtime instances disappear or get archived after use.
+Prevents temporary reasoning from contaminating permanent definition.
+
+---
+
+## Skill Permissions
+
+Active skill ≠ can do anything.
+
+```yaml
+skill:
+  id: github-analysis
+  status: active
+  permissions:
+    filesystem:
+      read: true
+      write: false
+    terminal:
+      execute: false
+    network:
+      read: true
+      write: false
+```
+
+Skills can be active while constrained.
+
+---
+
+## File Organization Rules
+
+1. **One file = one job**
+2. **No redundancy**
+3. **README = index only**
+4. **Logs = single source of truth**
+5. **Individual files = unique info only**
+6. **Derived state = rebuildable, not editable**
+7. **Audit = event-sourced, append-only**
+
+---
+
+## Governance
+
+This architecture is governed by the Constitution in `.jarvis/core/constitution.md`.
+
+The Constitution cannot be modified by JARVIS alone. It requires explicit user authorization.
+
+Any change to the Constitution must be:
+
+1. Proposed with clear reasoning
+2. Reviewed against existing rules
+3. Approved by the user
+4. Documented with change rationale
+5. Versioned with rollback capability
+
+---
+
+## Version
+
+**Architecture Version:** 4.0
+**Last Updated:** 2026-09-10
+**Status:** Active — authority-separated, provenance-tracked, event-sourced
+
+**Key additions in v4.0:**
+- Authority vs Source distinction (orthogonal axes)
+- Provenance chains (full evidence trails)
+- State machine (formal lifecycle)
+- Derived data classification (rebuildability principle)
+- Event-sourced audit (mutations as events)
+- Actor tracking (who made changes)
+- Council epistemic model (votes stay candidates)
+- Persona definition vs instance separation
+- Skill permissions (constrained active skills)
+
+**Previous versions:**
+- v3.0: Three-surface architecture, typed memory, world model
+- v2.0: Two-surface architecture, anti-hallucination rules
+- v1.0: Initial structure, vault + .jarvis + council + docs

@@ -1,68 +1,90 @@
 # World Model
 
-> JARVIS's current understanding of the world. NOT memory — current state.
+> **DERIVED STATE** — Rebuildable from canonical sources. Not editable truth.
 
-## User
+## What This Is
 
-Primary operator. Prefers:
-- Concise technical explanations
-- Direct challenges to weak reasoning
-- Clean architecture
-- Systems that scale
+This is JARVIS's current understanding of reality, reconstructed from:
 
-## Current Project
+1. **Events** — what has happened (audit history, episodic memory)
+2. **Verified Facts** — confirmed project state (project memory)
+3. **Active Decisions** — approved decisions (decision registry)
+4. **Environment Inspection** — direct observation of current state
 
-11:11 Division — streetwear brand, D&D + Bible narrative, Manado, Indonesia.
+**This file is derived.** If deleted, JARVIS can rebuild it from canonical sources.
 
-## Environment
+## Current World State
 
-- OS: Windows 11
-- Host: DESKTOP-BR2EA5O
-- Shell: /bin/sh
-- Python: 3.12.13
-- Working Directory: D:\Project\1111DIVISION
+### Date: 2026-09-10
 
-## Repository
+### User
 
-- Remote: https://github.com/snowep/1111DIVISION.git
-- Branch: main
-- Structure: .jarvis/ + vault/ + council/ + docs/ + src/ + tests/ + scripts/
+- **Name:** (awaiting explicit introduction)
+- **Location:** Manado, Indonesia
+- **Brand:** 11:11 Division (streetwear, D&D + Bible narrative, fallen angels, 239k IDR)
 
-## Knowledge Surfaces
+### Project: 11:11 Division
 
-| Surface | Purpose | Who Writes |
-|---------|---------|-----------|
-| `.jarvis/` | Operational intelligence state | JARVIS only |
-| `vault/` | Curated human-readable knowledge | JARVIS + Human |
-| `council/` | Canonical council configuration | Human (JARVIS maintains) |
-| `docs/` | Technical documentation | JARVIS + Human |
+- **Status:** Brand identity development, lore development in progress
+- **Phase:** Architecture establishment, memory system design
 
-## Active Capabilities
+### Architecture
 
-- File system operations
-- Terminal command execution
-- Web research
-- Council simulation
-- Persistent memory
-- Knowledge base search
-- Calendar management
-- Automation scheduling
+- **Three surfaces:** .jarvis/ (operations) + vault/ (knowledge) + repo (implementation)
+- **Memory system:** Authority-separated, provenance-tracked, promotion-pipelined
+- **State machine:** OBSERVED → INTERPRETED → CANDIDATE → VERIFIED → ACTIVE → SUPERSEDED
+- **Derived state:** World model, indexes, caches — all rebuildable
 
-## Current Objectives
+### Council
 
-- Build first production-ready drop system
-- Complete JARVIS architecture
-- Establish Obsidian knowledge base
+- **Seats:** 4 fixed + rotating + reserved
+- **Canonical config:** `/council/` in repository
+- **Live state:** `.jarvis/council/` (temporary)
 
-## Known Constraints
+### Key Decisions
 
-- Windows cmd (mkdir -p fails — creates stray "-p" dir)
-- Git commit messages with spaces in shell require quoting workarounds
-- Large files cause output truncation in tool responses
+- DEC-001: Brand Palette → Palette A (locked)
+- DEC-002: Wordmark Architecture → Wordmark-first identity (locked)
+- DEC-003: Drop Model → TBD (active)
+- DEC-004: Lore Strategy → TBD (active)
 
-## Unknowns
+### Environment
 
-- Production pricing not finalized
-- PO mechanics not confirmed
-- Website implementation approach TBD
-- Content launch sequence undefined
+- **OS:** Windows 11 (AMD64)
+- **Host:** DESKTOP-BR2EA5O
+- **Working directory:** D:\Project\1111DIVISION
+- **Git remote:** snowep/1111DIVISION (main branch)
+- **Python:** 3.12.13
+
+## Rebuild Procedure
+
+If this file is deleted, reconstruct from:
+
+```bash
+# 1. Load canonical sources
+cat .jarvis/core/constitution.md          # Rules
+cat .jarvis/memory/project/current-state.md  # Verified facts
+cat .jarvis/memory/knowledge/lessons.md   # Lessons
+
+# 2. Load decision registry
+ls council/decisions/                     # Active decisions
+
+# 3. Inspect environment
+git log --oneline -10                     # Recent activity
+ls -la                                   # Current state
+
+# 4. Rebuild world model
+# JARVIS synthesizes: events + facts + decisions + environment → world state
+```
+
+## Data Classification
+
+| Category | Description | Editable? | Rebuildable? |
+|----------|-------------|-----------|--------------|
+| Canonical | Original authoritative artifacts | By authority only | N/A (source) |
+| Curated | Human/JARVIS knowledge | Yes | Partially |
+| Derived | World model, indexes, caches | No (rebuild only) | Yes |
+| Ephemeral | Working memory, cache | Yes | No (disposable) |
+| Audit | Event history | Append-only | No (immutable) |
+
+**Rule:** Never treat derived state as source of truth.
