@@ -195,3 +195,96 @@ skill:
 ```
 
 Skills can be active while constrained.
+
+## Rule 20: Markdown Is Canonical, Not the Only Store
+
+Markdown/YAML is the canonical human-readable state. But as JARVIS grows, it is not sufficient as the only runtime database.
+
+Layered storage:
+
+```
+Markdown/YAML   → canonical state
+SQLite          → operational indexing / transactions (derived)
+Vector index    → semantic retrieval (derived)
+Graph           → relationships (derived)
+Cache           → performance (derived)
+```
+
+The runtime layers (SQLite, vectors, graph, cache) are **rebuildable derived layers** built from canonical Markdown. They are never authoritative on their own.
+
+## Rule 21: Journal Tracks Knowledge Evolution
+
+Audit answers: "What did the system do?"
+
+Journal answers: "What happened to the knowledge model?"
+
+```
+.jarvis/journal/
+├── observations/
+├── beliefs/
+├── decisions/
+├── state-transitions/
+└── corrections/
+```
+
+A decision can be traced: created → challenged → modified → superseded.
+That is institutional continuity.
+
+## Rule 22: Contradiction Detection Required
+
+New information must be checked against existing memory and the world model.
+
+```
+Memory A: "Use PostgreSQL."
+Memory B: "Project uses SQLite."
+World model: "Database = SQLite."
+```
+
+Procedure:
+
+```
+new information → conflict detector → conflict?
+    ↓ YES
+create conflict record (.jarvis/conflicts/)
+    ↓
+resolve using: source, authority, recency, scope, evidence
+    ↓
+update world model
+```
+
+Unresolved conflicts must remain visible, not silently merged.
+
+## Rule 23: Temporal Validity
+
+Memories carry validity intervals, not just creation timestamps:
+
+```yaml
+valid_from: 2026-09-01
+valid_until: 2026-09-10   # null = still valid
+```
+
+"Status: superseded" is a label. `valid_until` is a fact.
+The world model must be time-aware, not just status-aware.
+
+## Rule 24: Memory Promotion Gate
+
+The gate is a formal component, not a prompt instruction:
+
+```
+NEW INFORMATION
+     ↓
+MEMORY GATE
+  ├── relevance
+  ├── provenance
+  ├── authority
+  ├── confidence
+  ├── contradiction
+  ├── sensitivity
+  ├── duplication
+  └── longevity
+     ↓
+  REJECT | CANDIDATE | PROMOTE
+```
+
+Without the gate, "JARVIS filters what it needs" is aspiration.
+With the gate, it is architecture.

@@ -13,6 +13,31 @@ This is JARVIS's current understanding of reality, reconstructed from:
 
 **This file is derived.** If deleted, JARVIS can rebuild it from canonical sources.
 
+## Storage Architecture
+
+```
+Markdown/YAML   → canonical state (source of truth)
+SQLite          → operational indexing / transactions (derived)
+Vector index    → semantic retrieval (derived)
+Graph           → relationships (derived)
+Cache           → performance (derived)
+```
+
+The world model lives in the derived layer. It is rebuilt from canonical Markdown, never authoritative on its own.
+
+## Temporal Awareness
+
+Every fact in the world model carries validity:
+
+```yaml
+valid_from: 2026-09-01
+valid_until: null    # null = still valid
+```
+
+A fact with `valid_until: 2026-09-10` is historical — it shaped the past but does not describe the present.
+
+The world model is time-aware, not just status-aware.
+
 ## Current World State
 
 ### Date: 2026-09-10
@@ -31,8 +56,12 @@ This is JARVIS's current understanding of reality, reconstructed from:
 ### Architecture
 
 - **Three surfaces:** .jarvis/ (operations) + vault/ (knowledge) + repo (implementation)
-- **Memory system:** Authority-separated, provenance-tracked, promotion-pipelined
+- **Memory system:** Authority-separated, provenance-tracked, promotion-gated
 - **State machine:** OBSERVED → INTERPRETED → CANDIDATE → VERIFIED → ACTIVE → SUPERSEDED
+- **Layered storage:** Markdown canonical, SQLite/vectors/graph/cache derived
+- **Evolutionary history:** journal/ tracks knowledge model changes
+- **Conflict handling:** .jarvis/conflicts/ detects and resolves contradictions
+- **Temporal validity:** valid_from / valid_until on every fact
 - **Derived state:** World model, indexes, caches — all rebuildable
 
 ### Council
@@ -43,10 +72,10 @@ This is JARVIS's current understanding of reality, reconstructed from:
 
 ### Key Decisions
 
-- DEC-001: Brand Palette → Palette A (locked)
-- DEC-002: Wordmark Architecture → Wordmark-first identity (locked)
-- DEC-003: Drop Model → TBD (active)
-- DEC-004: Lore Strategy → TBD (active)
+- DEC-001: Brand Palette → Palette A (locked, valid_from: 2026-08-15)
+- DEC-002: Wordmark Architecture → Wordmark-first identity (locked, valid_from: 2026-08-15)
+- DEC-003: Drop Model → TBD (active, valid_from: 2026-09-01)
+- DEC-004: Lore Strategy → TBD (active, valid_from: 2026-09-01)
 
 ### Environment
 
@@ -69,11 +98,14 @@ cat .jarvis/memory/knowledge/lessons.md   # Lessons
 # 2. Load decision registry
 ls council/decisions/                     # Active decisions
 
-# 3. Inspect environment
+# 3. Load journal for evolutionary context
+cat .jarvis/journal/decisions/*.md        # Decision lifecycles
+
+# 4. Inspect environment
 git log --oneline -10                     # Recent activity
 ls -la                                   # Current state
 
-# 4. Rebuild world model
+# 5. Rebuild world model
 # JARVIS synthesizes: events + facts + decisions + environment → world state
 ```
 

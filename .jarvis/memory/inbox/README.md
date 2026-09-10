@@ -6,6 +6,8 @@
 
 Prevent premature commitment. User statements, inferences, observations — all start as candidates. Only after validation and approval do they get promoted to persistent memory.
 
+All entries pass through the **Memory Promotion Gate** first (see `.jarvis/memory/index.md` — checks: relevance, provenance, authority, confidence, contradiction, sensitivity, duplication, longevity).
+
 ## State Machine
 
 ```
@@ -109,7 +111,14 @@ Before promotion, verify:
 
 ### Step 4: Promotion
 
-After validation, promote to the appropriate memory class:
+After validation, promote to the appropriate memory class. Every promoted memory carries temporal validity:
+
+```yaml
+valid_from: 2026-09-01
+valid_until: null    # null = still valid
+```
+
+A memory whose `valid_until` has passed is historical — it shaped the past but does not describe the present.
 
 - **working/** — temporary, disposable
 - **episodic/** — what happened (history, not truth)

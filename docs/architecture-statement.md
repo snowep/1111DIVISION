@@ -16,6 +16,56 @@ The objective is to **remember what matters, forget what doesn't, and know the d
 
 ---
 
+## High-Level Architecture
+
+```
+                         USER
+                           │
+                           ▼
+                    ┌─────────────┐
+                    │   JARVIS    │
+                    │ Orchestrator│
+                    └──────┬──────┘
+                           │
+         ┌─────────────────┼─────────────────┐
+         │                 │                 │
+         ▼                 ▼                 ▼
+   TOOL SYSTEM        REASONING         KNOWLEDGE SYSTEM
+         │                 │                 │
+ terminal/browser     personas            memory gate
+ filesystem            council             provenance
+ github                planning            conflicts
+                       verification         promotion
+                                             │
+                         ┌───────────────────┼─────────────┐
+                         │                   │             │
+                         ▼                   ▼             ▼
+                     .jarvis               vault         repo
+                   operations             curated       canonical
+                   machine state           knowledge     artifacts
+                         │
+                         ▼
+                      AUDIT
+```
+
+### Underlying Knowledge System
+
+```
+                KNOWLEDGE SYSTEM
+                       │
+         ┌─────────────┼──────────────┐
+         ▼             ▼              ▼
+     Canonical       Derived        Ephemeral
+       state          state           state
+         │             │              │
+         ▼             ▼              ▼
+      Markdown      indexes/        working/
+      decisions     graph           cache
+      facts         vectors         temporary
+```
+
+---
+
 ## Three Surfaces
 
 JARVIS operates across three distinct surfaces:
@@ -31,8 +81,8 @@ JARVIS operates across three distinct surfaces:
             │              │              │
             ▼              ▼              ▼
        Machine truth   Human-readable  Canonical
-       Internal state  Shared knowledge Implementation
-       Audit trail     Documentation   Source code
+       Internal state   Shared knowledge Implementation
+       Audit trail       Documentation   Source code
 ```
 
 ### 1. Operations Surface (`.jarvis/`)
@@ -52,12 +102,21 @@ This is JARVIS's internal operating environment.
 │   └── instances/     # Temporary reasoning contexts
 ├── council/           # Live meeting state
 ├── sessions/          # Raw conversation history
+├── journal/           # Knowledge model evolution
+│   ├── observations/  # What changed understanding
+│   ├── beliefs/       # Belief states and evolution
+│   ├── decisions/     # Decision lifecycles
+│   ├── state-transitions/  # Memory state changes
+│   └── corrections/   # When JARVIS was wrong
+├── conflicts/         # Contradiction records
+│   ├── open/          # Unresolved
+│   └── resolved/      # Resolved with rationale
 ├── audit/             # Event-sourced mutation history
-│   ├── actions/       # Action events
-│   ├── memory/        # Memory mutation events
-│   ├── skills/        # Skill lifecycle events
-│   ├── permissions/   # Permission change events
-│   └── errors/        # Error events
+│   ├── actions/
+│   ├── memory/
+│   ├── skills/
+│   ├── permissions/
+│   └── errors/
 ├── core/              # Constitution, world model, principles
 └── indexes/           # Derived indexes (rebuildable)
 ```
@@ -101,6 +160,31 @@ Source code, configuration, canonical decisions.
 /tests/
     verification
 ```
+
+---
+
+## Storage Architecture
+
+Markdown is canonical. It is not the only store.
+
+```
+Markdown/YAML   → canonical human-readable state
+      ↓
+SQLite          → operational indexing / transactions
+      ↓
+Vector index    → semantic retrieval
+      ↓
+Graph           → relationships
+      ↓
+Cache           → performance
+```
+
+### Layered Storage Rules
+
+1. **Markdown is the canonical state** — source of truth, human-inspectable, versioned
+2. **SQLite, vectors, graph, cache are derived layers** — rebuilt from Markdown
+3. **Derived layers are never authoritative** — they are indexes, not origins
+4. **Deleting a derived layer is survivable** — rebuild it from canonical state
 
 ---
 
@@ -151,6 +235,32 @@ These are orthogonal axes. Never conflate them.
 | `project/` | Validated project state | Long-term |
 | `knowledge/` | General reusable knowledge | Long-term |
 
+### Memory Promotion Gate
+
+Every piece of new information passes through the gate before entering memory:
+
+```
+            NEW INFORMATION
+                   │
+                   ▼
+          ┌─────────────────┐
+          │ MEMORY GATE     │
+          ├─────────────────┤
+          │ relevance       │
+          │ provenance      │
+          │ authority       │
+          │ confidence      │
+          │ contradiction   │
+          │ sensitivity     │
+          │ duplication     │
+          │ longevity       │
+          └────────┬────────┘
+                   │
+        ┌──────────┼──────────┐
+        ▼          ▼          ▼
+      REJECT     CANDIDATE   PROMOTE
+```
+
 ### State Machine
 
 ```
@@ -159,22 +269,16 @@ OBSERVED → INTERPRETED → CANDIDATE → VERIFIED → ACTIVE → SUPERSEDED
                            REJECTED    DEPRECATED
 ```
 
-### Promotion Pipeline
-
-```
-INPUT → INBOX → CLASSIFY → VALIDATE → PROMOTE → MEMORY
-```
-
-Every piece of information goes through this pipeline. No exceptions.
-
 ---
 
 ## Anti-Hallucination Architecture
 
-Two failure modes this architecture prevents:
+Four failure modes this architecture prevents:
 
 1. **Persistence loop** — hallucinations becoming facts via storage
 2. **False authority** — reliable information being confused with permission to act
+3. **Derived-as-truth** — indexes or world models being treated as authoritative
+4. **Silent contradiction** — conflicting memories being merged without detection
 
 ### The persistence loop:
 
@@ -191,6 +295,22 @@ SOURCE (reliable) → BEHAVIOR CHANGE (without permission)
 ```
 
 A reliable source does not automatically grant authority to act.
+
+### The derived-as-truth:
+
+```
+WORLD MODEL (derived) → ASSUMED TRUTH (wrong)
+```
+
+The world model is a reconstruction, not a source.
+
+### The silent contradiction:
+
+```
+MEMORY A (PostgreSQL) + MEMORY B (SQLite) → WORLD MODEL (silently merged)
+```
+
+Conflicts must be detected and resolved explicitly, not merged silently.
 
 ### The safe loop:
 
@@ -278,6 +398,90 @@ WORLD MODEL → ASSUMED TRUTH
 
 ---
 
+## Temporal Validity
+
+Memories carry validity intervals, not just creation timestamps:
+
+```yaml
+valid_from: 2026-09-01
+valid_until: 2026-09-10   # null = still valid
+```
+
+"Status: superseded" is a label. `valid_until` is a fact.
+
+The world model is time-aware:
+- At any point in time, only facts whose interval contains that time are "current"
+- Historical analysis uses facts valid during the period being examined
+- A superseded fact is not deleted — it is a historical fact with a validity interval
+
+---
+
+## Journal (Knowledge Evolution)
+
+Audit answers: "What did the system do?"
+
+Journal answers: "What happened to the knowledge model?"
+
+```text
+.jarvis/journal/
+├── observations/        # What changed understanding
+├── beliefs/             # Belief states and evolution
+├── decisions/           # Decision lifecycles
+├── state-transitions/   # Memory state changes with reasoning
+└── corrections/         # When JARVIS was wrong
+```
+
+A decision can be traced:
+
+```
+DEC-004
+created
+    ↓
+challenged
+    ↓
+modified
+    ↓
+superseded
+```
+
+That is institutional continuity.
+
+---
+
+## Conflict Resolution
+
+Contradictions are detected, not ignored:
+
+```
+new information
+      ↓
+conflict detector
+      ↓
+┌──────────────┐
+│ conflict?    │
+└──────┬───────┘
+       │
+     YES
+       ↓
+create conflict record (.jarvis/conflicts/)
+       ↓
+resolve using: source, authority, recency, scope, evidence
+       ↓
+update world model
+```
+
+Resolution criteria, in order:
+
+1. **Authority** — who can act on this?
+2. **Source** — where did it come from?
+3. **Recency** — which is newer?
+4. **Scope** — which is more specific?
+5. **Evidence** — which is supported by observable fact?
+
+Unresolved conflicts remain visible in `conflicts/open/`. They are never silently merged.
+
+---
+
 ## Memory Epistemics
 
 JARVIS should know for every important memory:
@@ -302,6 +506,10 @@ provenance:
 
 # Actor
 actor: user | jarvis | tool | system | council | external | automation
+
+# Temporal
+valid_from: when it became valid
+valid_until: when it stopped being valid (null = still valid)
 
 # Lifecycle
 status: observed | interpreted | candidate | verified | active | superseded
@@ -330,6 +538,8 @@ provenance:
   session_id: ...
   message_id: ...
 actor: user
+valid_from: 2026-09-10
+valid_until: null
 status: active
 scope: design-decisions
 created: 2026-09-10
@@ -435,6 +645,8 @@ Skills can be active while constrained.
 5. **Individual files = unique info only**
 6. **Derived state = rebuildable, not editable**
 7. **Audit = event-sourced, append-only**
+8. **Journal = knowledge evolution, append-only**
+9. **Conflicts = detected then resolved, never merged silently**
 
 ---
 
@@ -456,22 +668,20 @@ Any change to the Constitution must be:
 
 ## Version
 
-**Architecture Version:** 4.0
+**Architecture Version:** 5.0
 **Last Updated:** 2026-09-10
-**Status:** Active — authority-separated, provenance-tracked, event-sourced
+**Status:** Active — layered storage, gated memory, time-aware, conflict-resolving
 
-**Key additions in v4.0:**
-- Authority vs Source distinction (orthogonal axes)
-- Provenance chains (full evidence trails)
-- State machine (formal lifecycle)
-- Derived data classification (rebuildability principle)
-- Event-sourced audit (mutations as events)
-- Actor tracking (who made changes)
-- Council epistemic model (votes stay candidates)
-- Persona definition vs instance separation
-- Skill permissions (constrained active skills)
+**Key additions in v5.0:**
+- Layered storage (Markdown canonical → SQLite/vectors/graph/cache derived)
+- Journal layer (knowledge evolution: observations, beliefs, decisions, corrections)
+- Contradiction detection (.jarvis/conflicts/)
+- Temporal validity (valid_from / valid_until)
+- Memory Promotion Gate (formal filter component)
+- High-level architecture diagram (orchestrator + tool/reasoning/knowledge systems)
 
 **Previous versions:**
+- v4.0: Authority-separated, provenance-tracked, event-sourced
 - v3.0: Three-surface architecture, typed memory, world model
 - v2.0: Two-surface architecture, anti-hallucination rules
 - v1.0: Initial structure, vault + .jarvis + council + docs
