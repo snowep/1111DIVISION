@@ -4,3 +4,15 @@
 # Source data (large, personal)
 *.txt
 *.json
+
+# JARVIS machine memory (not for git)
+# .jarvis/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Temp files
+*.tmp
+*.bak

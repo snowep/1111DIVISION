@@ -1,6 +1,6 @@
 # File & Folder Restructuring Guide
 
-> Applied to: [[council/README]] — Council extraction project (2026-09-10)
+> Applied to: [[vault/05 - People & Personas/Council/README]] — Council extraction project (2026-09-10)
 
 > How to audit, rename, and restructure any project folder from messy to clean.  
 > Learn once, apply everywhere. Re-read before starting any restructuring task.

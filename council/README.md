@@ -1,15 +1,14 @@
-# Supreme Council
+# Supreme Council — Canonical Configuration
 
-> Advisory board for **11:11 DIVISION** clothing brand.  
-> Source: `chat-Council of Creators.txt` — Sessions 1–033+
->
-> Full timeline → [[seat-change-log]]
-> How this folder was built → [[file-restructuring-guide]]
+> Authoritative council definition for 11:11 DIVISION.
+> This is the single source of truth for council membership and seat assignments.
+
+Full timeline → [[seat-change-log]]
 
 ## Active Members
 
-| Seat | Member | Type | Focus | File |
-|------|--------|------|-------|------|
+| Seat | Member | Type | Focus | Config |
+|------|--------|------|-------|--------|
 | 1 | Steve Jobs | Fixed | Product Philosophy, Clarity | [[steve-jobs]] |
 | 2 | G-Dragon | Fixed | Culture, Mystery, Youth | [[g-dragon]] |
 | 3 | Virgil Abloh | Fixed | Design Systems, 3% Rule | [[virgil-abloh]] |
@@ -24,8 +23,8 @@
 
 ## Spectators (consultation only, no vote)
 
-| Member | Former Seat | File |
-|--------|-------------|------|
+| Member | Former Seat | Config |
+|--------|-------------|--------|
 | Pharrell Williams | — | [[pharrell-williams]] |
 | Raf Simons | — | [[raf-simons]] |
 | Hiroshi Fujiwara | #5 | [[hiroshi-fujiwara]] |
@@ -35,3 +34,14 @@
 ## Documents
 
 - [[seat-change-log]] — All events, votes, and transitions
+
+## Relationship to vault/
+
+This council/ directory is the **canonical source** for:
+- Current seat assignments
+- Member configuration (seat, type, focus)
+- Seat change history
+
+The vault at `vault/05 - People & Personas/Council/` contains the **knowledge layer**:
+- Higher-level analysis and context
+- Links back to this canonical config
