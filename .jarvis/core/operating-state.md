@@ -23,6 +23,7 @@
 - Created council meeting records (CM-XXX)
 - Implemented epistemic memory with metadata
 - Documented anti-hallucination architectural rules
+- Implemented Phase 8: Self-audit protocol, status protocol, self-maintenance boundary rule
 
 ## Pending Decisions
 

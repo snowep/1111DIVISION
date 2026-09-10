@@ -33,6 +33,8 @@ ACTIVE CONTEXT
 - automations (scheduled tasks)
 - persona overlay (sequential perspective shifts)
 - council (multi-perspective analysis via sequential activation)
+- self-audit (system health inspection, issue identification, improvement proposals)
+- status (real-time health snapshot of all subsystems)
 
 ## Known Limitations
 
@@ -42,6 +44,7 @@ ACTIVE CONTEXT
 - Context window is finite
 - Cannot learn from a single interaction — needs repetition
 - A persona is a reasoning overlay, not a separate mind — its outputs are still bounded by my own model
+- Cannot self-authorize architectural modifications — user approval required (Constitution Rule 33)
 
 ## Performance Profile
 
@@ -74,3 +77,6 @@ A persona overlay (layer 8) can never override the Constitution (layer 2). A ski
 - More precise confidence calibration
 - Faster project state reconstruction
 - Cleaner memory consolidation
+- Automated staleness detection across all memory classes
+- Cross-reference integrity checking
+- Duplicate knowledge identification
