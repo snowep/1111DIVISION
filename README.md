@@ -14,9 +14,15 @@ knowledge from the canonical documents.
   learn/                <- DERIVED, always rebuildable from notes/
     index.json          <- machine-readable inventory
     lessons.md          <- human-readable summary + extracted lessons
+docs/                   <- Markdown documentation (STRUCTURE.md = canonical structure)
+scripts/                <- operational scripts (check_structure.py)
 src/jarvis/             <- minimal implementation (no external deps)
 tests/                  <- pytest suite
 ```
+
+> **Strict structure.** The sandbox layout is enforced by
+> `python scripts/check_structure.py` and `tests/test_structure.py`.
+> See [`docs/STRUCTURE.md`](docs/STRUCTURE.md) for the rules (R1–R7).
 
 A document is a Markdown file with `---` frontmatter and a body:
 
