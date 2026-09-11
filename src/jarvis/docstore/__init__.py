@@ -1,0 +1,1 @@
+"""docstore: Markdown documents with frontmatter, stored as files."""

@@ -32,3 +32,6 @@ Thumbs.db
 
 # Local runtime state
 *.log
+
+# Isolated JARVIS data folder (user data stays local; not for git)
+.jarvis/
