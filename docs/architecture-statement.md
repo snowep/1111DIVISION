@@ -202,7 +202,7 @@ Source code, configuration, canonical decisions.
 /docs/
     architecture, specifications
 
-/source/
+/src/
     implementation
 
 /tests/
@@ -639,7 +639,7 @@ Prevents simulated personas from becoming an authority loophole.
 
 ### Council Members Cannot Directly Mutate the Project
 
-Council outputs are **recommendations**. They never directly mutate `source/`, `vault/`, or `.jarvis/core/`:
+Council outputs are **recommendations**. They never directly mutate `src/`, `vault/`, or `.jarvis/core/`:
 
 ```
 PERSONA → ARGUMENT → COUNCIL RECOMMENDATION → JARVIS → AUTHORITY CHECK → USER / DECISION RULE → ACTION

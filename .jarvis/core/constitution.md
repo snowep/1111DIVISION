@@ -322,7 +322,7 @@ Not separate instances. Not separate models. Same identity adopting different pe
 Council outputs are **recommendations**. They never directly mutate:
 
 ```
-source/
+src/
 vault/
 .jarvis/core/
 ```

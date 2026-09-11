@@ -63,7 +63,7 @@ Virgil:     "Replace it with X."
 Security:   "Block Y."
 ```
 
-Those are **recommendations**. They never directly mutate `source/`, `vault/`, or `.jarvis/core/`.
+Those are **recommendations**. They never directly mutate `src/`, `vault/`, or `.jarvis/core/`.
 
 ## Epistemic Model
 
