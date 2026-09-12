@@ -49,13 +49,24 @@ function StatusChip({ health }) {
     );
   }
   if (health.ok) {
+    const liveRoute = health.availability || [];
+    const primaryOk = liveRoute[0]?.available;
+    const fallbackOk = liveRoute.some((a, i) => i > 0 && a.available);
     return (
-      <Tooltip title={`${health.model} · ${health.modelCount} NIM models reachable`}>
+      <Tooltip
+        title={`${health.model} · ${health.modelCount} NIM models reachable
+route: ${(health.route || []).join(' → ')}`}>
         <Chip
           icon={<LinkIcon />}
-          label={`linked · ${health.model}`}
+          label={
+            primaryOk
+              ? `linked · ${health.model}`
+              : fallbackOk
+                ? `linked via fallback · ${health.model}`
+                : `linked · ${health.model}`
+          }
           size="small"
-          color="success"
+          color={primaryOk ? 'success' : 'warning'}
           variant="outlined"
         />
       </Tooltip>
@@ -100,8 +111,28 @@ function MessageBubble({ message }) {
           wordBreak: 'break-word',
         }}
       >
+        {message.reasoning && (
+          <Typography
+            variant="body2"
+            color="text.secondary"
+            sx={{
+              fontStyle: 'italic',
+              opacity: 0.75,
+              fontSize: '0.85rem',
+              lineHeight: 1.45,
+              mb: 0.75,
+              whiteSpace: 'pre-wrap',
+              wordBreak: 'break-word',
+              borderLeft: '2px solid',
+              borderColor: 'divider',
+              pl: 1,
+            }}
+          >
+            {message.reasoning}
+          </Typography>
+        )}
         <Typography variant="body1" component="div" sx={{ fontSize: '0.95rem', lineHeight: 1.55 }}>
-          {message.content || (message.streaming ? '\u200b' : '')}
+          {message.content || (message.streaming && !message.reasoning ? '\u200b' : '')}
         </Typography>
         {message.streaming && (
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 0.5 }}>
@@ -124,6 +155,7 @@ export default function App() {
   const [health, setHealth] = useState(null);
   const [streaming, setStreaming] = useState(false);
   const [error, setError] = useState(null);
+  const [activeModel, setActiveModel] = useState(null);
   const endRef = useRef(null);
 
   useEffect(() => {
@@ -188,11 +220,25 @@ export default function App() {
           } catch {
             continue;
           }
-          const delta = chunk.choices?.[0]?.delta?.content;
-          if (typeof delta === 'string' && delta.length > 0) {
+          if (chunk.type === 'meta') {
+            setActiveModel(chunk.model);
+            continue;
+          }
+          const delta = chunk.choices?.[0]?.delta || {};
+          const text = delta.content;
+          const reasoning = delta.reasoning || delta.reasoning_content;
+          if (typeof text === 'string' && text.length > 0) {
             setMessages((prev) => {
               const next = prev.map((m) =>
-                m.streaming ? { ...m, content: m.content + delta } : m
+                m.streaming ? { ...m, content: m.content + text } : m
+              );
+              return next;
+            });
+          }
+          if (typeof reasoning === 'string' && reasoning.length > 0) {
+            setMessages((prev) => {
+              const next = prev.map((m) =>
+                m.streaming ? { ...m, reasoning: (m.reasoning || '') + reasoning } : m
               );
               return next;
             });
@@ -200,7 +246,8 @@ export default function App() {
         }
       }
     } catch (err) {
-      setError(err.message);
+      if (err.message) setError(err.message);
+      else setError('Request failed');
       setMessages((prev) => {
         const next = prev.map((m) =>
           m.streaming && !m.content
@@ -285,6 +332,9 @@ export default function App() {
           </Box>
           <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>
             NVIDIA NIM · {health?.ok ? health.model : 'not linked'}
+            {activeModel && activeModel !== health?.model
+              ? `  ·  serving via ${activeModel}`
+              : ''}
             {'  ·  '}key stays server-side
           </Typography>
         </Paper>

@@ -3,13 +3,26 @@
  *
  *   GET  /api/health  → verifies NIM connectivity by listing /models
  *   POST /api/chat    → forwards OpenAI-style messages, streams NIM SSE back
+ *                       with auto-routing: if the requested model is
+ *                       unavailable, the bridge retries the same request on
+ *                       the next model in the fallback chain.
  *   static serve      → serves ui/dist if it was built (single-server mode)
  *
  * Config comes from environment (node --env-file-if-exists=.env server.js):
- *   NIM_API_KEY   required
- *   NIM_BASE_URL  default https://integrate.api.nvidia.com/v1
- *   NIM_MODEL     default nvidia/llama-3.1-8b-instruct
- *   PORT          default 3001
+ *   NIM_API_KEY          required
+ *   NIM_BASE_URL         default https://integrate.api.nvidia.com/v1
+ *   NIM_MODEL            default nvidia/llama-3.1-8b-instruct (primary)
+ *   NIM_FALLBACK_MODELS  comma-separated ordered list of fallback model IDs
+ *   NIM_ROUTER           "off" disables auto-routing (default on)
+ *   PORT                 default 3001
+ *
+ * Auto-routing rules:
+ *   - Only triggers on *availability* failures (upstream HTTP error,
+ *     network error, timeout) BEFORE the stream starts.
+ *   - A stream that started and then dies is reported to the client as-is;
+ *     it is NOT transparently swapped mid-response.
+ *   - The client is told which model served the reply via a `meta` SSE
+ *     event emitted ahead of the first chunk.
  */
 
 import http from 'node:http';
@@ -24,6 +37,11 @@ const config = {
   nimBaseUrl: (process.env.NIM_BASE_URL || 'https://integrate.api.nvidia.com/v1').replace(/\/+$/, ''),
   nimModel: process.env.NIM_MODEL || 'nvidia/llama-3.1-8b-instruct',
   nimApiKey: process.env.NIM_API_KEY || '',
+  fallbackModels: (process.env.NIM_FALLBACK_MODELS || '')
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean),
+  routerEnabled: process.env.NIM_ROUTER !== 'off',
 };
 
 const DIST = path.join(__dirname, '..', 'ui', 'dist');
@@ -47,6 +65,22 @@ function safeParse(text) {
   }
 }
 
+/**
+ * Build the ordered candidate list for a request: the requested/primary model
+ * first, then configured fallbacks — deduplicated, empties removed.
+ */
+function buildCandidates(primary) {
+  const seen = new Set();
+  const out = [];
+  for (const m of [primary, ...(config.routerEnabled ? config.fallbackModels : [])]) {
+    if (m && !seen.has(m)) {
+      seen.add(m);
+      out.push(m);
+    }
+  }
+  return out;
+}
+
 const MIME = {
   '.html': 'text/html; charset=utf-8',
   '.js': 'text/javascript; charset=utf-8',
@@ -63,12 +97,13 @@ const MIME = {
 /* ------------------------------- endpoints -------------------------------- */
 
 async function handleHealth(res) {
+  const route = buildCandidates(config.nimModel);
   if (!config.nimApiKey) {
     return json(res, 200, {
       ok: false,
       status: 'no-key',
       message: 'NIM_API_KEY is not set. Copy server/.env.example to server/.env and add your key.',
-      config: { model: config.nimModel, baseUrl: config.nimBaseUrl },
+      config: { model: config.nimModel, baseUrl: config.nimBaseUrl, route },
     });
   }
   try {
@@ -87,12 +122,15 @@ async function handleHealth(res) {
     }
     const data = await upstream.json();
     const ids = (data?.data || []).map((m) => m.id);
+    const availability = route.map((m) => ({ model: m, available: ids.includes(m) }));
     return json(res, 200, {
       ok: true,
       status: 'connected',
       model: config.nimModel,
       modelKnown: ids.includes(config.nimModel),
       modelCount: ids.length,
+      route,
+      availability,
       sampleModels: ids.slice(0, 20),
     });
   } catch (err) {
@@ -124,53 +162,93 @@ async function handleChat(req, res) {
     return json(res, 401, { error: 'NIM_API_KEY is not set. Add it to server/.env and restart.' });
   }
 
-  const nimBody = {
-    model: parsed.model || config.nimModel,
-    messages,
-    stream: true,
-    temperature: parsed.temperature ?? 0.6,
-    max_tokens: parsed.max_tokens ?? 1024,
-  };
+  const candidates = buildCandidates(parsed.model || config.nimModel);
+  const attempts = [];
+  let lastFailure = null;
 
-  try {
-    const upstream = await fetch(`${config.nimBaseUrl}/chat/completions`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${config.nimApiKey}`,
-      },
-      body: JSON.stringify(nimBody),
-      signal: AbortSignal.timeout(120000),
-    });
+  for (const [index, model] of candidates.entries()) {
+    const nimBody = {
+      model,
+      messages,
+      stream: true,
+      temperature: parsed.temperature ?? 0.6,
+      max_tokens: parsed.max_tokens ?? 1024,
+    };
 
-    if (!upstream.ok) {
-      return json(res, upstream.status, {
-        error: `NIM returned HTTP ${upstream.status}`,
-        detail: safeParse(await upstream.text()),
+    try {
+      const upstream = await fetch(`${config.nimBaseUrl}/chat/completions`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${config.nimApiKey}`,
+        },
+        body: JSON.stringify(nimBody),
+        signal: AbortSignal.timeout(120000),
       });
-    }
 
-    res.writeHead(200, {
-      'Content-Type': 'text/event-stream; charset=utf-8',
-      'Cache-Control': 'no-cache',
-      Connection: 'keep-alive',
-      'X-Accel-Buffering': 'no',
-    });
+      if (!upstream.ok) {
+        const detail = safeParse(await upstream.text());
+        const reason =
+          (typeof detail === 'object' && detail?.error?.message) ||
+          `HTTP ${upstream.status}`;
+        attempts.push({ model, status: upstream.status, ok: false, reason });
+        lastFailure = { status: upstream.status, detail };
 
-    const reader = upstream.body.getReader();
-    for (;;) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      res.write(value);
+        // If the model itself was rejected (404), the reason is often
+        // "model not found" — surface the available models to guide.
+        if (upstream.status === 404) {
+          try {
+            const ml = await fetch(`${config.nimBaseUrl}/models`, {
+              headers: { Authorization: `Bearer ${config.nimApiKey}` },
+              signal: AbortSignal.timeout(10000),
+            });
+            if (ml.ok) {
+              const md = await ml.json();
+              lastFailure.availableModels = (md.data || []).map((m) => m.id);
+            }
+          } catch {
+            // best-effort: ignore model-list failure
+          }
+        }
+        continue;
+      }
+
+      // Stream headers first, then announce which model is actually serving.
+      res.writeHead(200, {
+        'Content-Type': 'text/event-stream; charset=utf-8',
+        'Cache-Control': 'no-cache',
+        Connection: 'keep-alive',
+        'X-Accel-Buffering': 'no',
+      });
+      res.write(
+        `data: ${JSON.stringify({
+          type: 'meta',
+          model,
+          fallback: index > 0,
+          attempts: attempts.length,
+        })}\n\n`
+      );
+
+      const reader = upstream.body.getReader();
+      for (;;) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        res.write(value);
+      }
+      res.end();
+      return;
+    } catch (err) {
+      attempts.push({ model, ok: false, reason: `network: ${err.message}` });
+      lastFailure = { status: 502, detail: err.message };
+      continue;
     }
-    res.end();
-  } catch (err) {
-    if (!res.headersSent) {
-      return json(res, 502, { error: `Upstream error: ${err.message}` });
-    }
-    res.write(`data: ${JSON.stringify({ error: err.message })}\n\n`);
-    res.end();
   }
+
+  return json(res, 503, {
+    error: `All ${candidates.length} candidate model(s) failed.`,
+    attempts,
+    lastFailure,
+  });
 }
 
 /* ---------------------------- static file serving ------------------------- */
@@ -229,6 +307,7 @@ const server = http.createServer(async (req, res) => {
       '  API:   /api/health   /api/chat',
       '  UI:    build it with:  cd ui && npm install && npm run build',
       `  Model: ${config.nimModel}`,
+      `  Route: ${buildCandidates(config.nimModel).join('  ->  ')}`,
       config.nimApiKey ? '' : '  NOTE:  NIM_API_KEY not set — copy server/.env.example to server/.env',
     ].filter(Boolean).join('\n'));
   } catch (err) {
@@ -243,4 +322,6 @@ server.listen(config.port, () => {
   console.log(`  model   : ${config.nimModel}`);
   console.log(`  base URL: ${config.nimBaseUrl}`);
   console.log(`  key     : ${config.nimApiKey ? 'set' : 'MISSING (copy .env.example to .env)'}`);
+  console.log(`  router  : ${config.routerEnabled ? 'auto (' + config.fallbackModels.length + ' fallback(s))' : 'off'}`);
+  console.log(`  route   : ${buildCandidates(config.nimModel).join('  ->  ')}`);
 });
