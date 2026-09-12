@@ -32,6 +32,7 @@ class MemoryNote:
     kind: str
     phase: str
     confidence: float
+    importance: float
     valid_until: Optional[str]
     tags: list[str]
     provenance: dict[str, Any]
@@ -50,6 +51,13 @@ def parse_memory_note(doc: Document) -> MemoryNote:
         conf = float(conf)
     except (TypeError, ValueError):
         conf = 0.5
+        
+    imp = doc.metadata.get("importance", 0.5)
+    try:
+        imp = float(imp)
+    except (TypeError, ValueError):
+        imp = 0.5
+        
     valid_until = doc.metadata.get("valid_until")
     tags = doc.metadata.get("tags") or []
     if not isinstance(tags, list):
@@ -59,6 +67,7 @@ def parse_memory_note(doc: Document) -> MemoryNote:
         kind=kind,
         phase=phase_of(doc.metadata),
         confidence=conf,
+        importance=imp,
         valid_until=str(valid_until) if valid_until is not None else None,
         tags=[str(t) for t in tags],
         provenance=prov,
@@ -93,6 +102,7 @@ def remember(
     title: str | None = None,
     tags: list[str] | None = None,
     confidence: float | None = None,
+    importance: float | None = None,
     valid_until: str | None = None,
     provenance: dict[str, Any] | None = None,
     phase: str = "OBSERVED",
@@ -110,6 +120,8 @@ def remember(
         meta["tags"] = tags
     if confidence is not None:
         meta["confidence"] = confidence
+    if importance is not None:
+        meta["importance"] = importance
     if valid_until:
         meta["valid_until"] = valid_until
     if provenance:
@@ -174,7 +186,9 @@ def activate(store: DocumentStore, rel: str, reason: str = "activated") -> Memor
 
 
 def list_active(store: DocumentStore, kind: str | None = None) -> list[MemoryNote]:
-    """Return notes whose phase is ACTIVE/VERIFIED and not expired (if dated)."""
+    """Return notes whose phase is ACTIVE/VERIFIED and not expired (if dated),
+    sorted by importance (highest first) then by update date.
+    """
     out: list[MemoryNote] = []
     now_dt = datetime.now(timezone.utc)
     for rel in store.list_documents(kind):
@@ -192,7 +206,7 @@ def list_active(store: DocumentStore, kind: str | None = None) -> list[MemoryNot
             except ValueError:
                 pass  # malformed valid_until treated as no expiry
         out.append(note)
-    out.sort(key=lambda n: n.document.metadata.get("updated", ""))
+    out.sort(key=lambda n: (-n.importance, n.document.metadata.get("updated", "")))
     return out
 
 

@@ -70,7 +70,8 @@ def _build_parser() -> argparse.ArgumentParser:
                     help="memory type (routing)")
     sp.add_argument("--tags", default="", help="comma-separated tags")
     sp.add_argument("--confidence", type=float, default=None, help="0..1 epistemic confidence")
-    sp.add_argument("--valid-until", default=None, help="ISO datetime; auto-archived after")
+    sp.add_argument("--importance", type=float, default=None, help="0..1 importance weight (auto-assessed if omitted)")
+    sp.add_argument("--valid-until", default=None, help="ISO datetime; auto-archived after (auto-calculated if omitted)")
     sp.add_argument("--phase", default="OBSERVED", help="lifecycle phase")
     sp.add_argument("--actor", default="user", help="who/what originated this")
 
@@ -99,12 +100,24 @@ def _build_parser() -> argparse.ArgumentParser:
 def _cmd_remember(args) -> int:
     store = _store(args)
     tags = [t.strip() for t in args.tags.split(",") if t.strip()]
+    
+    # Apply assess/decay if not explicitly provided
+    importance = args.importance
+    valid_until = args.valid_until
+    if importance is None:
+        from jarvis.memory.assess import assess_importance
+        importance = assess_importance(args.text, args.kind)
+    if valid_until is None:
+        from jarvis.memory.assess import calculate_decay
+        valid_until = calculate_decay(importance)
+        
     note = remember(
         store,
         args.text,
         kind=args.kind,
         confidence=args.confidence,
-        valid_until=args.valid_until,
+        importance=importance,
+        valid_until=valid_until,
         phase=args.phase,
         actor=args.actor,
         provenance={"type": "user", "source": "cli"},

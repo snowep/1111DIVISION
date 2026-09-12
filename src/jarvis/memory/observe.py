@@ -23,6 +23,7 @@ from typing import Any
 
 from jarvis.docstore.store import DocumentStore
 from jarvis.memory.engine import remember
+from jarvis.memory.assess import assess_importance, calculate_decay
 
 # ---------------------------------------------------------------------------
 # Statement classification
@@ -67,6 +68,7 @@ class Extraction:
     kind: str
     phase: str
     confidence: float
+    importance: float
 
 
 def extract_statements(transcript: str) -> list[Extraction]:
@@ -81,7 +83,8 @@ def extract_statements(transcript: str) -> list[Extraction]:
             continue
         kind, phase = _route_statement(text)
         confidence = 0.3 if phase == "CANDIDATE" else 0.5
-        out.append(Extraction(text=text, kind=kind, phase=phase, confidence=confidence))
+        importance = assess_importance(text, kind)
+        out.append(Extraction(text=text, kind=kind, phase=phase, confidence=confidence, importance=importance))
     return out
 
 
@@ -103,11 +106,14 @@ def observe(
     if provenance:
         prov.update(provenance)
     for ex in extract_statements(transcript):
+        decay = calculate_decay(ex.importance)
         note = remember(
             store,
             ex.text,
             kind=ex.kind,
             confidence=ex.confidence,
+            importance=ex.importance,
+            valid_until=decay,
             phase=ex.phase,
             provenance=prov,
             actor=actor,
