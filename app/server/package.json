@@ -1,0 +1,13 @@
+{
+  "name": "jarvis-nim-bridge",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Zero-dependency Node bridge between the React/MUI UI and NVIDIA NIM.",
+  "type": "module",
+  "scripts": {
+    "start": "node --env-file-if-exists=.env server.js"
+  },
+  "engines": {
+    "node": ">=22.9"
+  }
+}

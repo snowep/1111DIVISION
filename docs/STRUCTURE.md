@@ -17,6 +17,10 @@ D:/Project/1111DIVISION/
 ├── scripts/              operational scripts — no application code
 │   ├── README.md
 │   └── check_structure.py
+├── app/                  the JS/Node application (NIM bridge + React/MUI UI)
+│   ├── README.md
+│   ├── server/           zero-dependency Node bridge (keeps NIM key server-side)
+│   └── ui/               Vite + React + Material UI chat
 ├── src/                  implementation — the `jarvis` Python package
 │   └── jarvis/
 │       ├── __init__.py
@@ -39,8 +43,8 @@ D:/Project/1111DIVISION/
 |---|------|
 | R1 | **Canonical vs derived.** `.jarvis/notes/` is canonical. `.jarvis/learn/` is derived — always rebuilt from canonical sources, never edited by hand, never treated as authoritative. |
 | R2 | **Isolation.** All runtime data lives under `.jarvis/`. It is gitignored and never becomes repo truth. |
-| R3 | **One purpose per directory.** `src/jarvis` = application code; `tests/` = tests only; `docs/` = Markdown only; `scripts/` = operational scripts only. |
-| R4 | **No stray files.** Repo root allows exactly `README.md`, `pyproject.toml`, `.gitignore`, and the directories `docs/ scripts/ src/ tests/`. No probe files, no scratch `.py` files, no one-off scripts at the root. |
+| R3 | **One purpose per directory.** `src/jarvis` = Python application code; `app/` = JS/Node application code; `tests/` = tests only; `docs/` = Markdown only; `scripts/` = operational scripts only. |
+| R4 | **No stray files.** Repo root allows exactly `README.md`, `pyproject.toml`, `.gitignore`, and the directories `docs/ scripts/ src/ tests/ app/`. No probe files, no scratch `.py`/`.js` files, no one-off scripts at the root. |
 | R5 | **Every directory has a README.md** stating its purpose. |
 | R6 | **Everything important is a document.** Decisions are written down before they are acted on. |
 | R7 | **Verification before commit.** `python scripts/check_structure.py` exits 0 **and** `python -m pytest -q` passes, or nothing is committed. |

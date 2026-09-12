@@ -35,3 +35,7 @@ Thumbs.db
 
 # Isolated JARVIS data folder (user data stays local; not for git)
 .jarvis/
+
+# Node / JS app artifacts
+node_modules/
+app/server/.env

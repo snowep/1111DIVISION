@@ -32,6 +32,7 @@ CONFORMING = {
     "src/jarvis/cli.py": "",
     "tests/README.md": "# tests",
     "tests/test_models.py": "",
+    "app/README.md": "# app",
 }
 
 
@@ -62,6 +63,12 @@ def test_unexpected_root_dir_is_violation(tmp_path):
     _make_tree(tmp_path, CONFORMING)
     (tmp_path / "cache").mkdir()
     assert any("unexpected directory at root: cache" in v for v in check(tmp_path))
+
+
+def test_python_in_app_is_violation(tmp_path):
+    _make_tree(tmp_path, CONFORMING)
+    (tmp_path / "app" / "x.py").write_text("x = 1", encoding="utf-8")
+    assert any("app/ contains Python file" in v for v in check(tmp_path))
 
 
 def test_missing_package_init_is_violation(tmp_path):

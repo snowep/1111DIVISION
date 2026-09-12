@@ -12,8 +12,15 @@ import sys
 from pathlib import Path
 
 ROOT_ALLOWED_FILES = {"README.md", "pyproject.toml", ".gitignore"}
-ROOT_ALLOWED_DIRS = {"docs", "scripts", "src", "tests"}
-TOP_LEVEL_DIRS = ("docs", "scripts", "src", "tests")
+ROOT_ALLOWED_DIRS = {"docs", "scripts", "src", "tests", "app"}
+TOP_LEVEL_DIRS = ("docs", "scripts", "src", "tests", "app")
+
+# Top-level directories that hold Markdown documentation only.
+MD_ONLY_DIRS = {"docs"}
+# Top-level directories that hold Python packages.
+PY_DIRS = {"src", "scripts"}
+# Top-level directories that hold the JS/Node application.
+APP_DIRS = {"app"}
 
 
 def _walk(root: Path):
@@ -74,9 +81,22 @@ def check(root: Path) -> list[str]:
             if p.is_file() and p.suffix.lower() not in (".py", ".md", ".ini", ".cfg", ".txt"):
                 violations.append(f"RULE R3: tests/ contains unexpected file: {p.relative_to(root)}")
 
+    # R3: app/ is the JS/Node application — no Python, no stray source.
+    app = root / "app"
+    if app.is_dir():
+        if not (app / "README.md").is_file():
+            violations.append("RULE R5: app/ has no README.md")
+        for p in _walk(app):
+            if p.is_file() and p.suffix.lower() in (".py", ".pyc", ".pyo"):
+                violations.append(f"RULE R3: app/ contains Python file: {p.relative_to(root)}")
+
     # R4: no Python files anywhere at the repo root.
     for p in sorted(root.glob("*.py")):
         violations.append(f"RULE R4: python file at repo root: {p.name}")
+
+    # R4: no Node/JS source files at the repo root (they belong in app/).
+    for p in sorted(root.glob("*.js")):
+        violations.append(f"RULE R4: node source file at repo root: {p.name}")
 
     # R6: implementation package exists and is importable-shaped.
     pkg_init = root / "src" / "jarvis" / "__init__.py"
