@@ -2,10 +2,15 @@
  * JARVIS NIM bridge — zero-dependency Node HTTP server.
  *
  *   GET  /api/health  → verifies NIM connectivity by listing /models
+ *   GET  /api/fs/root → filesystem sandbox status (configured, root)
+ *   GET  /api/fs/list → list a directory inside the sandbox (?path=rel)
+ *   GET  /api/fs/read → read a file inside the sandbox (?path=rel)
  *   POST /api/chat    → forwards OpenAI-style messages, streams NIM SSE back
  *                       with auto-routing: if the requested model is
  *                       unavailable, the bridge retries the same request on
- *                       the next model in the fallback chain.
+ *                       the next model in the fallback chain. Supports
+ *                       @file(rel/path) expansion: the file's content is
+ *                       injected into the user message before sending.
  *   static serve      → serves ui/dist if it was built (single-server mode)
  *
  * Config comes from environment (node --env-file-if-exists=.env server.js):
@@ -14,6 +19,8 @@
  *   NIM_MODEL            default nvidia/llama-3.1-8b-instruct (primary)
  *   NIM_FALLBACK_MODELS  comma-separated ordered list of fallback model IDs
  *   NIM_ROUTER           "off" disables auto-routing (default on)
+ *   FS_ROOT              absolute path of the folder JARVIS may read
+ *                        (read-only sandbox; omit or leave blank to disable)
  *   PORT                 default 3001
  *
  * Auto-routing rules:
@@ -29,6 +36,7 @@ import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { FSRoom } from './fsroom.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -42,7 +50,10 @@ const config = {
     .map((s) => s.trim())
     .filter(Boolean),
   routerEnabled: process.env.NIM_ROUTER !== 'off',
+  fsRoot: process.env.FS_ROOT || '',
 };
+
+const fsroom = new FSRoom(config.fsRoot);
 
 const DIST = path.join(__dirname, '..', 'ui', 'dist');
 
@@ -93,6 +104,53 @@ const MIME = {
   '.woff2': 'font/woff2',
   '.woff': 'font/woff',
 };
+
+/* ------------------------------- endpoints -------------------------------- */
+
+async function handleFsRoot(res) {
+  return json(res, 200, fsroom.rootInfo());
+}
+
+async function handleFsList(req, res) {
+  try {
+    const rel = new URL(req.url, 'http://localhost').searchParams.get('path') || '';
+    return json(res, 200, fsroom.list(rel));
+  } catch (err) {
+    return json(res, err.status || 500, { error: err.message, code: err.code || 'FS_ERROR' });
+  }
+}
+
+async function handleFsRead(req, res) {
+  try {
+    const rel = new URL(req.url, 'http://localhost').searchParams.get('path') || '';
+    return json(res, 200, fsroom.read(rel));
+  } catch (err) {
+    return json(res, err.status || 500, { error: err.message, code: err.code || 'FS_ERROR' });
+  }
+}
+
+/**
+ * Expand @file(rel/path) into actual file content before sending to NIM.
+ * Always leaves a visible breadcrumb so the model knows the tool ran.
+ */
+function expandFileRefs(content) {
+  if (!fsroom.configured) return { content, injections: [] };
+  const injections = [];
+  const expanded = String(content).replace(/@file\(([^)]+)\)/g, (_m, rel) => {
+    try {
+      const file = fsroom.read(rel.trim());
+      if (file.binary) {
+        return `[@file(${file.path}) — binary file, not included]`;
+      }
+      const body = `\n\n<file path="${file.path.replace(/&/g, '&amp;').replace(/"/g, '&quot;')}" size="${file.size}"${file.truncated ? ' truncated="true"' : ''}>\n${file.content}\n</file>\n`;
+      injections.push({ path: file.path, size: file.size, truncated: file.truncated });
+      return body;
+    } catch (err) {
+      return `[@file(${rel}) — ${err.message}]`;
+    }
+  });
+  return { content: expanded, injections };
+}
 
 /* ------------------------------- endpoints -------------------------------- */
 
@@ -158,6 +216,15 @@ async function handleChat(req, res) {
     return json(res, 400, { error: '"messages" must be a non-empty array.' });
   }
 
+  // Expand @file(...) references in the last user message.
+  const injections = [];
+  const last = messages[messages.length - 1];
+  if (last && last.role === 'user' && typeof last.content === 'string') {
+    const expanded = expandFileRefs(last.content);
+    last.content = expanded.content;
+    injections.push(...expanded.injections);
+  }
+
   if (!config.nimApiKey) {
     return json(res, 401, { error: 'NIM_API_KEY is not set. Add it to server/.env and restart.' });
   }
@@ -220,6 +287,7 @@ async function handleChat(req, res) {
         Connection: 'keep-alive',
         'X-Accel-Buffering': 'no',
       });
+      // meta: which model serves this reply. files: what was injected.
       res.write(
         `data: ${JSON.stringify({
           type: 'meta',
@@ -228,6 +296,9 @@ async function handleChat(req, res) {
           attempts: attempts.length,
         })}\n\n`
       );
+      if (injections.length > 0) {
+        res.write(`data: ${JSON.stringify({ type: 'files', files: injections })}\n\n`);
+      }
 
       const reader = upstream.body.getReader();
       for (;;) {
@@ -296,6 +367,9 @@ const server = http.createServer(async (req, res) => {
 
   try {
     if (req.method === 'GET' && pathname === '/api/health') return await handleHealth(res);
+    if (req.method === 'GET' && pathname === '/api/fs/root') return await handleFsRoot(res);
+    if (req.method === 'GET' && pathname === '/api/fs/list') return await handleFsList(req, res);
+    if (req.method === 'GET' && pathname === '/api/fs/read') return await handleFsRead(req, res);
     if (req.method === 'POST' && pathname === '/api/chat') return await handleChat(req, res);
     if (pathname.startsWith('/api/')) return json(res, 404, { error: 'Unknown API route.' });
     if (serveStatic(req, res)) return;
@@ -324,4 +398,5 @@ server.listen(config.port, () => {
   console.log(`  key     : ${config.nimApiKey ? 'set' : 'MISSING (copy .env.example to .env)'}`);
   console.log(`  router  : ${config.routerEnabled ? 'auto (' + config.fallbackModels.length + ' fallback(s))' : 'off'}`);
   console.log(`  route   : ${buildCandidates(config.nimModel).join('  ->  ')}`);
+  console.log(`  fsroom  : ${fsroom.configured ? fsroom.root : 'not configured (set FS_ROOT)'}`);
 });

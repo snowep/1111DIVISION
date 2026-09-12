@@ -1,0 +1,10 @@
+feat: workspace — sandboxed read-only access to a local folder
+
+Adds an FS sandbox (fsroom.js) behind FS_ROOT with /api/fs/root|list|read.
+Traversal is impossible (realpath re-check defeats symlinks/junctions);
+secrets (.env, *.pem, *.key) blocked; node_modules/.git hidden; reads
+size-capped and binary-safe. UI gains a Workspace drawer (folder icon):
+browse folders, click a file to attach it as @file(rel/path). The bridge
+expands @file(...) into the model request as a <file> block and emits a
+files SSE event so chips render on the user message. .env.example and
+README document the feature.

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   AppBar,
   Avatar,
@@ -7,7 +7,12 @@ import {
   Chip,
   CircularProgress,
   CssBaseline,
+  Drawer,
   IconButton,
+  List,
+  ListItemButton,
+  ListItemIcon,
+  ListItemText,
   Paper,
   TextField,
   ThemeProvider,
@@ -21,6 +26,12 @@ import SmartToyIcon from '@mui/icons-material/SmartToy';
 import PersonIcon from '@mui/icons-material/Person';
 import LinkOffIcon from '@mui/icons-material/LinkOff';
 import LinkIcon from '@mui/icons-material/Link';
+import FolderOpenIcon from '@mui/icons-material/FolderOpen';
+import FolderIcon from '@mui/icons-material/Folder';
+import InsertDriveFileIcon from '@mui/icons-material/InsertDriveFile';
+import ArrowBackIcon from '@mui/icons-material/ArrowBack';
+import CloseIcon from '@mui/icons-material/Close';
+import RefreshIcon from '@mui/icons-material/Refresh';
 
 const theme = createTheme({
   palette: {
@@ -37,7 +48,7 @@ const theme = createTheme({
   },
 });
 
-function StatusChip({ health }) {
+function StatusChip({ health, fsroot }) {
   if (!health) {
     return (
       <Chip
@@ -52,21 +63,28 @@ function StatusChip({ health }) {
     const liveRoute = health.availability || [];
     const primaryOk = liveRoute[0]?.available;
     const fallbackOk = liveRoute.some((a, i) => i > 0 && a.available);
+    const fsOk = fsroot?.configured;
     return (
       <Tooltip
-        title={`${health.model} · ${health.modelCount} NIM models reachable
-route: ${(health.route || []).join(' → ')}`}>
+        title={`${health.model} · ${health.modelCount} NIM models reachable\nroute: ${(health.route || []).join(' → ')}\nfs: ${fsOk ? fsroot.root : 'not configured'}`}
+      >
         <Chip
           icon={<LinkIcon />}
           label={
-            primaryOk
-              ? `linked · ${health.model}`
-              : fallbackOk
-                ? `linked via fallback · ${health.model}`
-                : `linked · ${health.model}`
+            fsOk
+              ? primaryOk
+                ? `linked · ${health.model} · files`
+                : fallbackOk
+                  ? `linked via fallback · files`
+                  : `linked · ${health.model} · files`
+              : primaryOk
+                ? `linked · ${health.model}`
+                : fallbackOk
+                  ? `linked via fallback · ${health.model}`
+                  : `linked · ${health.model}`
           }
           size="small"
-          color={primaryOk ? 'success' : 'warning'}
+          color={primaryOk && fsOk ? 'success' : primaryOk ? 'success' : 'warning'}
           variant="outlined"
         />
       </Tooltip>
@@ -106,11 +124,25 @@ function MessageBubble({ message }) {
           py: 1.25,
           bgcolor: isUser ? 'primary.dark' : 'background.paper',
           border: '1px solid',
-          borderColor: isUser ? 'primary.main' : 'divider',
+          borderColor: isUser ? 'secondary.main' : 'divider',
           whiteSpace: 'pre-wrap',
           wordBreak: 'break-word',
         }}
       >
+        {message.files && message.files.length > 0 && (
+          <Box sx={{ mb: 1 }}>
+            {message.files.map((f, i) => (
+              <Chip
+                key={i}
+                icon={<InsertDriveFileIcon fontSize="small" />}
+                label={`${f.path}${f.truncated ? ' (truncated)' : ''}`}
+                size="small"
+                variant="outlined"
+                sx={{ mr: 0.5, mb: 0.5 }}
+              />
+            ))}
+          </Box>
+        )}
         {message.reasoning && (
           <Typography
             variant="body2"
@@ -147,15 +179,127 @@ function MessageBubble({ message }) {
   );
 }
 
+function FileTree({ fsroot, onAttach, attached, currentPath, setCurrentPath, onRefresh }) {
+  const [listing, setListing] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState(null);
+
+  useEffect(() => {
+    (async () => {
+      setLoading(true);
+      setErr(null);
+      try {
+        const res = await fetch(`/api/fs/list?path=${encodeURIComponent(currentPath || '')}`);
+        const data = await res.json();
+        if (!res.ok || data.error) throw new Error(data.error || `HTTP ${res.status}`);
+        setListing(data);
+      } catch (e) {
+        setErr(e.message);
+        setListing(null);
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, [currentPath, onRefresh]);
+
+  if (!fsroot?.configured) {
+    return (
+      <Box p={2}>
+        <Typography variant="body2" color="text.secondary">
+          Filesystem not configured. Set <code>FS_ROOT</code> in{' '}
+          <code>server/.env</code> to enable file access.
+        </Typography>
+      </Box>
+    );
+  }
+
+  const isRoot = !currentPath;
+
+  return (
+    <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+      <Box sx={{ px: 2, py: 1, borderBottom: '1px solid', borderColor: 'divider', display: 'flex', alignItems: 'center', gap: 1 }}>
+        <IconButton size="small" onClick={() => setCurrentPath('')} disabled={isRoot || loading} title="Up">
+          <ArrowBackIcon fontSize="small" />
+        </IconButton>
+        <Typography variant="caption" color="text.secondary" sx={{ flexGrow: 1, fontFamily: 'monospace', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          {fsroot?.root}
+        </Typography>
+        <IconButton size="small" onClick={onRefresh} title="Refresh" disabled={loading}>
+          <RefreshIcon fontSize="small" />
+        </IconButton>
+      </Box>
+      <Box sx={{ px: 2, py: 0.5, borderBottom: '1px solid', borderColor: 'divider' }}>
+        <Typography variant="caption" sx={{ fontFamily: 'monospace', color: 'primary.main' }}>
+          /{currentPath}
+        </Typography>
+      </Box>
+      {err && (
+        <Typography variant="caption" color="error" sx={{ px: 2, py: 1 }}>
+          {err}
+        </Typography>
+      )}
+      <Box sx={{ flexGrow: 1, overflowY: 'auto' }}>
+        <List dense disablePadding>
+          {loading && (
+            <Box sx={{ display: 'flex', justifyContent: 'center', py: 3 }}>
+              <CircularProgress size={20} />
+            </Box>
+          )}
+          {!loading &&
+            (listing?.entries || []).map((e) => (
+              <ListItemButton
+                key={e.path}
+                dense
+                onClick={() => (e.type === 'dir' ? setCurrentPath(e.path) : onAttach(e.path))}
+                sx={{ borderRadius: 1, mx: 0.5, mt: 0.25 }}
+              >
+                <ListItemIcon sx={{ minWidth: 32 }}>
+                  {e.type === 'dir' ? (
+                    <FolderIcon fontSize="small" color="primary" />
+                  ) : (
+                    <InsertDriveFileIcon fontSize="small" color="secondary" />
+                  )}
+                </ListItemIcon>
+                <ListItemText
+                  primary={e.name}
+                  secondary={e.type === 'file' ? (e.size / 1024).toFixed(1) + ' KiB' : ''}
+                  primaryTypographyProps={{ fontSize: '0.87rem' }}
+                  secondaryTypographyProps={{ fontSize: '0.7rem' }}
+                />
+                {attached.has(e.path) && e.type === 'file' && (
+                  <Chip label="attached" size="small" color="primary" variant="outlined" sx={{ height: 20, fontSize: '0.65rem' }} />
+                )}
+              </ListItemButton>
+            ))}
+          {!loading && (listing?.entries || []).length === 0 && (
+            <Typography variant="body2" color="text.secondary" sx={{ px: 2, py: 2 }}>
+              (empty)
+            </Typography>
+          )}
+        </List>
+      </Box>
+      {listing?.truncated && (
+        <Typography variant="caption" color="text.secondary" sx={{ px: 2, py: 0.5 }}>
+          listing truncated (showing first {listing.entries.length})
+        </Typography>
+      )}
+    </Box>
+  );
+}
+
 export default function App() {
   const [messages, setMessages] = useState([
     { role: 'assistant', content: 'Link established. What are we working on?' },
   ]);
   const [input, setInput] = useState('');
   const [health, setHealth] = useState(null);
+  const [fsroot, setFsroot] = useState(null);
   const [streaming, setStreaming] = useState(false);
   const [error, setError] = useState(null);
   const [activeModel, setActiveModel] = useState(null);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [fsPath, setFsPath] = useState('');
+  const [refreshTick, setRefreshTick] = useState(0);
   const endRef = useRef(null);
 
   useEffect(() => {
@@ -166,12 +310,31 @@ export default function App() {
       } catch (e) {
         setHealth({ ok: false, status: 'network-error', message: e.message });
       }
+      try {
+        const res = await fetch('/api/fs/root');
+        setFsroot(await res.json());
+      } catch {
+        setFsroot({ configured: false });
+      }
     })();
   }, []);
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, streaming]);
+
+  const attached = useMemo(() => {
+    const s = new Set();
+    for (const m of messages) {
+      for (const f of m.files || []) s.add(f.path);
+    }
+    return s;
+  }, [messages]);
+
+  function attachFile(path) {
+    setInput((prev) => (prev.trim() ? prev + `\n@file(${path})` : `@file(${path})`));
+    setDrawerOpen(false);
+  }
 
   async function send() {
     const text = input.trim();
@@ -199,6 +362,7 @@ export default function App() {
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
       let buffer = '';
+      let pendingFiles = [];
 
       for (;;) {
         const { done, value } = await reader.read();
@@ -222,6 +386,16 @@ export default function App() {
           }
           if (chunk.type === 'meta') {
             setActiveModel(chunk.model);
+            continue;
+          }
+          if (chunk.type === 'files') {
+            pendingFiles = chunk.files || [];
+            // Mark the user's message with the attached-files chips.
+            setMessages((prev) =>
+              prev.map((m, i) =>
+                i === prev.length - 2 && m.role === 'user' ? { ...m, files: pendingFiles } : m
+              )
+            );
             continue;
           }
           const delta = chunk.choices?.[0]?.delta || {};
@@ -276,9 +450,45 @@ export default function App() {
             <Typography variant="h6" component="div" sx={{ flexGrow: 1, letterSpacing: 1 }}>
               JARVIS&nbsp;{'//'}&nbsp;NIM&nbsp;BRIDGE
             </Typography>
-            <StatusChip health={health} />
+            <Tooltip title={fsroot?.configured ? 'Workspace' : 'Filesystem not configured'}>
+              <span>
+                <IconButton
+                  color={fsroot?.configured ? 'primary' : 'default'}
+                  onClick={() => setDrawerOpen(true)}
+                  disabled={!fsroot?.configured}
+                  aria-label="open workspace"
+                >
+                  <FolderOpenIcon />
+                </IconButton>
+              </span>
+            </Tooltip>
+            <StatusChip health={health} fsroot={fsroot} />
           </Toolbar>
         </AppBar>
+
+        <Drawer
+          anchor="right"
+          open={drawerOpen}
+          onClose={() => setDrawerOpen(false)}
+          PaperProps={{ sx: { width: 360, bgcolor: 'background.paper', borderLeft: '1px solid', borderColor: 'divider' } }}
+        >
+          <Box sx={{ display: 'flex', alignItems: 'center', px: 2, py: 1, borderBottom: '1px solid', borderColor: 'divider' }}>
+            <Typography variant="subtitle2" sx={{ flexGrow: 1 }}>
+              Workspace
+            </Typography>
+            <IconButton size="small" onClick={() => setDrawerOpen(false)}>
+              <CloseIcon fontSize="small" />
+            </IconButton>
+          </Box>
+          <FileTree
+            fsroot={fsroot}
+            onAttach={attachFile}
+            attached={attached}
+            currentPath={fsPath}
+            setCurrentPath={setFsPath}
+            onRefresh={refreshTick}
+          />
+        </Drawer>
 
         <Box sx={{ flexGrow: 1, overflowY: 'auto', px: { xs: 2, md: 6 }, py: 2 }}>
           {messages.map((m, i) => (
@@ -307,7 +517,7 @@ export default function App() {
               multiline
               maxRows={4}
               placeholder={
-                health?.ok ? 'Message JARVIS…' : 'Set your NIM key first — see server/.env'
+                health?.ok ? 'Message JARVIS…  (@file(path) attaches a file)' : 'Set your NIM key first — see server/.env'
               }
               value={input}
               disabled={streaming || !health?.ok}
@@ -335,6 +545,7 @@ export default function App() {
             {activeModel && activeModel !== health?.model
               ? `  ·  serving via ${activeModel}`
               : ''}
+            {fsroot?.configured ? '  ·  workspace: on' : '  ·  workspace: off'}
             {'  ·  '}key stays server-side
           </Typography>
         </Paper>
