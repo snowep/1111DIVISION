@@ -1,4 +1,4 @@
-"""Command-line interface: jarvis new|list|read|edit|delete|learn|seed|remember|status|forget|skill."""
+"""Command-line interface: jarvis new|list|read|edit|delete|learn|seed|remember|status|forget|verify|supersede|skill."""
 from __future__ import annotations
 
 import argparse
@@ -90,9 +90,17 @@ def _build_parser() -> argparse.ArgumentParser:
     sp.add_argument("--reason", default="superseded", help="reason recorded in provenance")
 
     # ---- skills (P2) ----
-    sp = sub.add_parser("skill", help="skill manager: registry, list, scan")
-    sp.add_argument("action", choices=["list", "scan", "rebuild"], default="list", nargs="?",
-                    help="list = show registry (or rebuild if missing)")
+    sp = sub.add_parser("skill", help="skill manager: registry, list, scan, run")
+    skill_subsub = sp.add_subparsers(dest="skill_command", help="skill sub-command")
+    skill_subsub.add_parser("scan", help="rebuild the skills registry from disk")
+    skill_subsub.add_parser("list", help="list known skills with status and permissions")
+    skill_run = skill_subsub.add_parser("run", help="run a skill by name")
+    skill_run.add_argument("name", help="name of the skill to run")
+    skill_run.add_argument(
+        "param",
+        nargs="*",
+        help="parameters in the form key=value",
+    )
 
     return p
 
@@ -100,7 +108,7 @@ def _build_parser() -> argparse.ArgumentParser:
 def _cmd_remember(args) -> int:
     store = _store(args)
     tags = [t.strip() for t in args.tags.split(",") if t.strip()]
-    
+
     # Apply assess/decay if not explicitly provided
     importance = args.importance
     valid_until = args.valid_until
@@ -110,7 +118,7 @@ def _cmd_remember(args) -> int:
     if valid_until is None:
         from jarvis.memory.assess import calculate_decay
         valid_until = calculate_decay(importance)
-        
+
     note = remember(
         store,
         args.text,
@@ -163,13 +171,13 @@ def _cmd_status(args) -> int:
     print("# JARVIS status")
     print(f"root: {store.root}")
     print(f"vault notes: {len(notes)} ({len(active)} active, {len(proposals)} proposals)")
-    print(f"\n## Active\n")
+    print("\n## Active\n")
     if active:
         for n in active:
             print(f"  - [{n.kind}/{n.phase}] {n.document.metadata.get('title', n.document.path)}")
     else:
         print("  (none)")
-    print(f"\n## Proposals (OBSERVED/CANDIDATE)\n")
+    print("\n## Proposals (OBSERVED/CANDIDATE)\n")
     if proposals:
         for n in proposals:
             print(f"  - [{n.kind}/{n.phase}] {n.document.metadata.get('title', n.document.path)}")
@@ -186,25 +194,64 @@ def _cmd_status(args) -> int:
 
 
 def _cmd_skill(args) -> int:
-    store = _store(args)
-    if args.action == "scan" or args.action == "rebuild":
-        # Rebuild derived registry from skills/ (deterministic).
-        data = rebuild_registry(store.root)
-        print(f"registry rebuilt: {len(data['skills'])} skill(s) "
-              f"({data['scanned_at']}) -> {store.root / 'skills' / 'registry.md'}")
+    root = Path(args.root) if args.root else DEFAULT_ROOT
+    if args.skill_command == "scan":
+        from jarvis.skills import rebuild_registry
+        rebuild_registry(root)
+        print("Registry rebuilt")
         return 0
-    # list: rebuild if missing, then show
-    reg_md = store.root / "skills" / "registry.md"
-    if not reg_md.is_file():
-        rebuild_registry(store.root)
-    skills = load_skills(store.root)
-    if not skills:
-        print("(no skills registered — create skills/<name>/skill.md then run 'jarvis skill scan')")
+    if args.skill_command == "list":
+        from jarvis.skills import load_skills
+        for skill in load_skills(root):
+            print(f"{skill.name}: {skill.status} | {skill.permissions}")
         return 0
-    for s in skills:
-        perms = ",".join(f"{k}={v}" for k, v in sorted(s.permissions.items())) or "none"
-        print(f"  {s.name} v{s.version} [{s.status}] perms={{{perms}}} — {s.description}")
-    return 0
+    if args.skill_command == "run":
+        # Build parameters dict from key=value strings
+        params = {}
+        for p in args.param:
+            if '=' not in p:
+                print(f"error: parameter '{p}' must be in the form key=value")
+                return 1
+            k, v = p.split('=', 1)
+            params[k] = v
+
+        # Load the skill module
+        skill_path = root / "skills" / args.name / "impl.py"
+        if not skill_path.exists():
+            print(f"error: skill '{args.name}' not found at {skill_path}")
+            return 1
+
+        import importlib.util
+        import sys
+        spec = importlib.util.spec_from_file_location(f"skill_{args.name}", skill_path)
+        if spec is None:
+            print(f"error: could not load skill '{args.name}'")
+            return 1
+        module = importlib.util.module_from_spec(spec)
+        sys.modules[spec.name] = module
+        try:
+            spec.loader.exec_module(module)
+        except Exception as e:
+            print(f"error: failed to execute skill module: {e}")
+            return 1
+
+        if not hasattr(module, 'run'):
+            print(f"error: skill '{args.name}' missing run function")
+            return 1
+
+        # Run the skill
+        try:
+            result = module.run(params, session_id=None)
+            # Print result as JSON for clarity
+            import json
+            print(json.dumps(result, indent=2))
+            return 0 if result.get("success", False) else 1
+        except Exception as e:
+            print(f"error: skill execution failed: {e}")
+            return 1
+
+    print("error: missing skill sub-command")
+    return 1
 
 
 def main(argv: list[str] | None = None) -> int:

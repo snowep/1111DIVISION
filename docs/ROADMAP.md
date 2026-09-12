@@ -12,14 +12,16 @@
 |-------|-------|--------|
 | P1 | Obsidian-compatible long-term memory | ✅ Implemented (vault routing, provenance, phases) |
 | P2 | Skill manager + permission model | ✅ Implemented (manifest, registry, permission checks) |
-| P3 | Sandboxed terminal | 🔲 Next |
+| P3 | Memory filter + self-critique | ✅ Implemented (importance scoring, temporal decay, structured lessons) |
+| P10 | Deterministic runtime kernel | ✅ Implemented (roots, identity, validation, context priority, IO boundary) |
+| P3b | Sandboxed terminal skill | 🔲 Next |
 | P4 | Web reader (controlled HTTP) | 🔲 |
 | P5 | Web crawl (structured traversal) | 🔲 |
 | P6 | GitHub skill importer | 🔲 |
 | P7 | Self-learn (lesson consolidation) | 🔲 |
 | P8 | Self-adaptation (preference learning) | 🔲 |
 | P9 | Self-evolution (code + UI changes) | 🔲 |
-| P10 | Autonomy + governance layer | 🔲 |
+| P11 | Autonomy + governance layer | 🔲 |
 
 ## Completed
 
@@ -30,7 +32,7 @@ system:
 
 - `vault/{episodic,semantic,procedural,decisions,learned}/` subdirectories.
 - YAML frontmatter schema: `id, type, tags, created, updated, source,
-  confidence, valid_until, provenance, phase`.
+  confidence, valid_until, provenance, phase, importance`.
 - Routing matrix: memory type → vault subdirectory, extensible via
   `update_routing()`.
 - Provenance chains: notes carry `provenance.based_on` links; `provenance_chain()`
@@ -56,14 +58,65 @@ system:
   recorded as `status: invalid` in the registry, keeping the scan
   deterministic.
 
+### P3 — Memory filter + self-critique ✅
+
+Adds the JARVIS Master Prompt Section 10 (Memory Filter) and Section 68
+(Self-Critique) directly into the P1 substrate:
+
+- `memory/assess.py` — `assess_importance()` scores every memory candidate
+  (0.0–1.0) from structural kind + utility keywords; `calculate_decay()`
+  assigns ephemeral `valid_until` boundaries (24h / 7d) to low-importance
+  notes so they self-expire and get archived.
+- `memory/engine.py` — `MemoryNote.importance`; `list_active()` ranks by
+  importance desc, then updated date.
+- `memory/observe.py` — harvested statements are auto-weighted + decayed.
+- `memory/critique.py` — `critique_task()` turns a failed task into
+  structured lessons (wrong assumption, corrected understanding) stored as
+  `kind: learned` notes.
+
+### P10 — Deterministic runtime kernel ✅
+
+The kernel is the deterministic, inspectable substrate the intelligence
+layer (JARVIS in Open WebUI) runs on. Everything is pure Python over the
+existing Markdown architecture — no vector search, no web UI, no autonomous
+execution, no LLM-as-authority:
+
+- `errors/` — typed, inspectable error hierarchy with stable `code` values
+  (`PATH_ESCAPE`, `MISSING_FIELD`, `DUPLICATE_ID`, `INVALID_STATUS`,
+  `BROKEN_REF`, `MUTATION_DENIED`, `CORRUPT_STATE`, `IDENTITY_ERROR`, ...).
+  The kernel **never silently repairs corrupted state** — it raises.
+- `models/` — `OperationResult` (success, operation_id, data, warnings,
+  errors, provenance) returned by every kernel operation; deterministic
+  serialization.
+- `runtime/` — `resolve_root()` finds the canonical workspace root
+  (explicit arg → `JARVIS_ROOT` env → walk up from cwd to `.jarvis/`);
+  `build_runtime()` constructs the full `Runtime` (roots + resolver + io +
+  identity) eagerly, failing fast with a typed error.
+- `io/` — `WorkspaceResolver` (safe path resolution: traversal, absolute
+  paths, symlink/UNC escapes blocked; semantic aliases `vault/ council/
+  skills/ core/ learn/` resolve to their canonical `.jarvis/` locations)
+  and `SafeIO` (reads always allowed; **writes require an `Authority`
+  in-scope or raise `MUTATION_DENIED`**).
+- `core/` — `load_identity()` reads identity **only from `.jarvis/core`
+  (identity.json or identity.md)**. Open WebUI config / env vars are never
+  an identity source.
+- `validation/` — `load_document()` / `load_all()` parse frontmatter into
+  typed `LoadedDocument`s and enforce required fields, duplicate IDs,
+  allowed statuses, and broken reference checks.
+- `context/` — `ContextBuilder` assembles the ordered prompt context
+  (`platform → constitution → system → world_model → memory → skills →
+  task → persona → user`; index 0 = highest). Lower layers never override
+  higher ones — `apply_override(caller=...)` raises `CONTEXT_ERROR` on a
+  priority violation. Assembly is deterministic.
+
 ## Planned
 
-### P3 — Sandboxed terminal
+### P3b — Sandboxed terminal skill
 
 - Spawn shell with cwd pinned in workspace; stream via SSE.
 - Blocklist-first commands; timeout + memory cap; audit to
   `vault/episodic/terminal/`.
-- Unexpands P9 (running tests).
+- Unblocks P9 (running tests).
 
 ### P4 — Web reader
 
@@ -94,7 +147,7 @@ system:
 - Propose diff → structure check + pytest → show diff → on approval apply +
   commit + push; no silent edits, rollback = `git revert`.
 
-### P10 — Autonomy + governance
+### P11 — Autonomy + governance
 
 - Global permission gates, confirmation dialogs, full audit log, eval harness.
 
@@ -107,15 +160,18 @@ system:
 3. **Authority ≠ confidence.** Who may act on a note (authority) is orthogonal
    to how likely it is correct (confidence).
 4. **Lifecycle over deletion.** Knowledge is archived (phases), not destroyed.
-5. **Dependency chain.**
+5. **Deterministic kernel.** The runtime resolves, reads, validates, and
+   assembles the same inputs to the same outputs; every failure is a typed,
+   inspectable error.
+6. **Dependency chain.**
 
 ```
 P1 Memory ──┬──► P7 Self-Learn ──► P8 Self-Adapt
             └──► P2 Skills ──┬──► P3 Terminal ──────┐
                              └──► P4 Web ──► P5 Crawl / P6 GitHub ──► P9 Self-Evolve
-P3 + P6 + P1 ───────────────────────────────────────────────────────► P9 ──► P10
+P3 + P6 + P1 ───────────────────────────────────────────────────────► P9 ──► P10 Kernel ──► P11
 ```
 
 ---
 
-*Updated: 2026-09-12 — P1+P2 implemented.*
+*Updated: 2026-09-13 — P1+P2+P3+P10 implemented.*

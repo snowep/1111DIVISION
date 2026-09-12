@@ -27,6 +27,13 @@ D:/Project/1111DIVISION/
 │       ├── __init__.py
 │       ├── __main__.py
 │       ├── cli.py
+│       ├── errors/        typed, inspectable error hierarchy (kernel)
+│       ├── models/        normalized runtime payloads (OperationResult)
+│       ├── runtime/       kernel bootstrap — roots, Runtime, build_runtime()
+│       ├── core/          identity loaded ONLY from .jarvis/core
+│       ├── io/            safe path resolution + authority-bounded read/write
+│       ├── validation/    frontmatter-typed loading + integrity checks
+│       ├── context/       deterministic context assembly with priority order
 │       ├── docstore/     canonical document store (frontmatter Markdown CRUD)
 │       ├── learn/        derived knowledge — always rebuildable from docstore
 │       ├── memory/       P1: vault memory (routing, provenance, phases, observe)
