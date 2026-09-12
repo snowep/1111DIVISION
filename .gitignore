@@ -36,6 +36,10 @@ Thumbs.db
 # Isolated JARVIS data folder (user data stays local; not for git)
 .jarvis/
 
+# Derived skill registry (rebuilt on scan — never committed)
+.jarvis/skills/registry.md
+.jarvis/skills/registry.json
+
 # Node / JS app artifacts
 node_modules/
 app/server/.env

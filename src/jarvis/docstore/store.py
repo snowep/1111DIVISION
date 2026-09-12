@@ -22,19 +22,19 @@ class DocumentStore:
     """CRUD over Markdown documents inside an isolated root directory.
 
     Layout:
-        <root>/notes/<kind>/<id>.md   -- the documents (canonical)
+        <root>/vault/<kind>/<id>.md   -- the documents (canonical)
         <root>/learn/                 -- derived artifacts (rebuildable)
     """
 
     def __init__(self, root: str | Path):
         self.root = Path(root).resolve()
-        self.notes_dir = self.root / "notes"
+        self.vault_dir = self.root / "vault"
         self.learn_dir = self.root / "learn"
         self.ensure_dirs()
 
     # ------------------------------------------------------------------ dirs
     def ensure_dirs(self) -> None:
-        self.notes_dir.mkdir(parents=True, exist_ok=True)
+        self.vault_dir.mkdir(parents=True, exist_ok=True)
         self.learn_dir.mkdir(parents=True, exist_ok=True)
 
     # ----------------------------------------------------------------- paths
@@ -42,8 +42,8 @@ class DocumentStore:
         p = Path(rel)
         if p.is_absolute() or ".." in p.parts:
             raise StoreError(f"invalid path (traversal blocked): {rel!r}")
-        target = (self.notes_dir / p).resolve()
-        if not str(target).startswith(str(self.notes_dir.resolve())):
+        target = (self.vault_dir / p).resolve()
+        if not str(target).startswith(str(self.vault_dir.resolve())):
             raise StoreError(f"path escapes store root: {rel!r}")
         return target
 
@@ -73,7 +73,7 @@ class DocumentStore:
         metadata: Optional[dict[str, Any]] = None,
         doc_id: Optional[str] = None,
     ) -> Document:
-        """Create a document at notes/<kind>/<id>.md and return it."""
+        """Create a document at vault/<kind>/<id>.md and return it."""
         self._validate_kind(kind)
         doc_id = doc_id or self._new_id()
         self._validate_id(doc_id)
@@ -145,12 +145,12 @@ class DocumentStore:
         """Return relative paths of all Markdown documents (sorted)."""
         if kind is not None:
             self._validate_kind(kind)
-        base = self.notes_dir / kind if kind else self.notes_dir
+        base = self.vault_dir / kind if kind else self.vault_dir
         out: list[str] = []
         if base.is_dir():
             for p in sorted(base.rglob("*.md")):
                 if p.is_file():
-                    out.append(p.relative_to(self.notes_dir).as_posix())
+                    out.append(p.relative_to(self.vault_dir).as_posix())
         return out
 
     # --------------------------------------------------------------- helpers

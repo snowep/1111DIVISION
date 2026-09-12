@@ -1,10 +1,11 @@
 """Deterministic learning: rebuild derived artifacts from canonical documents.
 
 Derived artifacts live under <root>/learn/ and are ALWAYS recomputed from the
-canonical notes. Nothing is stored here that cannot be regenerated:
+canonical vault notes. Nothing is stored here that cannot be regenerated:
 
   index.json   -- machine-readable inventory (counts, tags, titles, updated at)
   lessons.md   -- human-readable summary, including extracted lesson bullets
+  state.md     -- derived JARVIS state summary (world model, active skills)
 """
 from __future__ import annotations
 
@@ -13,7 +14,8 @@ from collections import Counter
 from typing import Any
 
 from jarvis.docstore.models import DocError
-from jarvis.docstore.store import DocumentStore
+from jarvis.docstore.store import DocumentStore, StoreError
+from jarvis.memory.engine import list_active
 
 
 def learn(store: DocumentStore) -> dict[str, Any]:
@@ -28,7 +30,40 @@ def learn(store: DocumentStore) -> dict[str, Any]:
     (store.learn_dir / "lessons.md").write_text(
         render_lessons(store, index), encoding="utf-8"
     )
+    _write_state_summary(store, index)
     return index
+
+
+def _write_state_summary(store: DocumentStore, index: dict[str, Any]) -> None:
+    """Write the derived 'current state' world-model summary (never authoritative)."""
+    active = list_active(store)
+    skills: list[str] = []
+    try:
+        from jarvis.skills.skill import load_skills
+
+        skills = [s.name for s in load_skills(store.root) if s.status == "active"]
+    except Exception:
+        skills = []
+    target = store.learn_dir / "state.md"
+    lines = [
+        "# Derived JARVIS State",
+        "",
+        "> **DERIVED** — rebuilt from canonical vault + skills. Never edit by hand.",
+        "",
+        f"Documents: {index.get('document_count', 0)}",
+        f"Active memories: {len(active)}",
+        f"Skills: {', '.join(skills) if skills else '(none)'}",
+        "",
+        "## Active Memories",
+        "",
+    ]
+    if active:
+        for note in active:
+            lines.append(f"- [{note.kind}] {note.document.metadata.get('title', note.document.path)}")
+    else:
+        lines.append("(none)")
+    lines.append("")
+    target.write_text("\n".join(lines), encoding="utf-8")
 
 
 def build_index(store: DocumentStore) -> dict[str, Any]:
@@ -55,6 +90,7 @@ def build_index(store: DocumentStore) -> dict[str, Any]:
                 "tags": tags,
                 "updated": meta.get("updated", meta.get("created", "")),
                 "words": len(doc.body.split()),
+                "phase": meta.get("phase", "OBSERVED"),
             }
         )
     docs.sort(key=lambda d: d["path"])

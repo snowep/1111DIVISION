@@ -41,8 +41,8 @@ def check(root: Path) -> list[str]:
     for entry in sorted(root.iterdir()):
         name = entry.name
         if entry.is_dir():
-            if name in (".git", ".pytest_cache", "__pycache__", ".mypy_cache", ".ruff_cache"):
-                continue  # tooling/version-control internals
+            if name in (".git", ".pytest_cache", "__pycache__", ".mypy_cache", ".ruff_cache", ".jarvis"):
+                continue  # tooling/version-control/runtime internals (runtime state is gitignored)
             if name in ROOT_ALLOWED_DIRS:
                 continue
             violations.append(f"RULE R4: unexpected directory at root: {name}")
