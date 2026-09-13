@@ -9,20 +9,18 @@
 ## Status
 
 | Phase | Title | Status |
-|-------|-------|--------|
 | P1 | Obsidian-compatible long-term memory | ✅ Implemented (vault routing, provenance, phases) |
 | P2 | Skill manager + permission model | ✅ Implemented (manifest, registry, permission checks) |
 | P3 | Memory filter + self-critique | ✅ Implemented (importance scoring, temporal decay, structured lessons) |
 | P10 | Deterministic runtime kernel | ✅ Implemented (roots, identity, validation, context priority, IO boundary) |
 | P3b | Sandboxed terminal skill | ✅ Implemented (safe-exec: blocklist, cwd-pin, timeout, cap, authority) |
 | P4 | Web reader (controlled HTTP) | ✅ Implemented (SSRF/IP/port/scheme/redirect/size guards, authority) |
-| P5 | Web crawl (structured traversal) | 🔲 Next |
-| P6 | GitHub skill importer | 🔲 |
+| P5 | Web crawl (structured traversal) | ✅ Implemented (depth/domain/robots/dedupe caps, output to vault/semantic/) |
+| P6 | GitHub skill importer | 🔲 Next |
 | P7 | Self-learn (lesson consolidation) | 🔲 |
 | P8 | Self-adaptation (preference learning) | 🔲 |
 | P9 | Self-evolution (code + UI changes) | 🔲 |
 | P11 | Autonomy + governance layer | 🔲 |
-
 ## Completed
 
 ### P1 — Obsidian-compatible long-term memory ✅
@@ -158,11 +156,30 @@ Server-side bounded `fetch` with guards that run **before** any connect:
 - 6 guard tests: authority gate, IPv4 block, scheme block, port block,
   redirect cap, missing host.
 
+### P5 — Web crawl (structured traversal) ✅
+
+Crawls web pages starting from a seed URL, respecting depth, domain, and
+robots.txt. Each fetched page is stored as a markdown file in
+`vault/semantic/` with frontmatter (source URL, fetch timestamp, depth,
+content type) and a deterministic URL-hash filename.
+
+- `src/jarvis/crawl/crawler.py` — `Crawler`: breadth-first,
+  depth-limited (`max_depth`), page-limited (`max_pages`), domain-locked
+  (`stay_on_domain`), robots.txt respect (`obey_robots`), URL dedupe
+  (`visited`), per-domain robots cache. Fetch reuses the P4 guard set
+  (via `HttpClient`); the write boundary is enforced against the
+  authority scope (`MUTATION_DENIED` if out of scope).
+- Skill manifest `.jarvis/skills/web_crawl/` declares
+  `network: read, filesystem: write`; the wrapper adapts params to the
+  tracked `Crawler` engine.
+- 11 tests in `tests/test_phase10_crawl.py` — depth limit, domain lock,
+  robots respected/optional, dedupe, max-pages, write gate, invalid seed,
+  frontmatter output, URL normalization. The fetch layer is injected
+  (deterministic fake HTTP client); the real P4 guards are covered by
+  `test_phase10_web_exec.py`. Loopback SSRF is deliberately blocked by
+  design (no production vulnerability), so crawl tests avoid real network.
+
 ## Planned
-
-### P5 — Web crawl
-
-- Depth/domain/robots/dedupe caps; output derived into `vault/semantic/`.
 
 ### P6 — GitHub skill importer
 
@@ -186,9 +203,7 @@ Server-side bounded `fetch` with guards that run **before** any connect:
 
 ### P11 — Autonomy + governance
 
-- Global permission gates, confirmation dialogs, full audit log, eval harness.
-
-## Principles
+- Global permission gates, confirmation dialogs, full audit log, eval harness.## Principles
 
 1. **Canonical vs derived.** Vault notes are canonical. `learn/`, registry,
    indexes, summaries are derived — always rebuildable, never authoritative.
@@ -211,4 +226,4 @@ P3 + P6 + P1 ──────────────────────�
 
 ---
 
-*Updated: 2026-09-13 — P1+P2+P3+P10+P3b+P4 implemented.*
+*Updated: 2026-09-13 — P1+P2+P3+P10+P3b+P4+P5 implemented.*
