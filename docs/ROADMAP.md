@@ -14,9 +14,9 @@
 | P2 | Skill manager + permission model | ✅ Implemented (manifest, registry, permission checks) |
 | P3 | Memory filter + self-critique | ✅ Implemented (importance scoring, temporal decay, structured lessons) |
 | P10 | Deterministic runtime kernel | ✅ Implemented (roots, identity, validation, context priority, IO boundary) |
-| P3b | Sandboxed terminal skill | 🔲 Next |
-| P4 | Web reader (controlled HTTP) | 🔲 |
-| P5 | Web crawl (structured traversal) | 🔲 |
+| P3b | Sandboxed terminal skill | ✅ Implemented (safe-exec: blocklist, cwd-pin, timeout, cap, authority) |
+| P4 | Web reader (controlled HTTP) | ✅ Implemented (SSRF/IP/port/scheme/redirect/size guards, authority) |
+| P5 | Web crawl (structured traversal) | 🔲 Next |
 | P6 | GitHub skill importer | 🔲 |
 | P7 | Self-learn (lesson consolidation) | 🔲 |
 | P8 | Self-adaptation (preference learning) | 🔲 |
@@ -109,19 +109,56 @@ execution, no LLM-as-authority:
   higher ones — `apply_override(caller=...)` raises `CONTEXT_ERROR` on a
   priority violation. Assembly is deterministic.
 
-## Planned
-
 ### P3b — Sandboxed terminal skill
 
-- Spawn shell with cwd pinned in workspace; stream via SSE.
-- Blocklist-first commands; timeout + memory cap; audit to
-  `vault/episodic/terminal/`.
-- Unblocks P9 (running tests).
+- `jarvis/exec/safe.py` — `safe_exec()`: blocklist-first (dangerous
+  prefixes refused before any shell), cwd pinned inside workspace
+  (else `CWD_ESCAPE`), timeout (else `TIMEOUT`), stdout/stderr size caps
+  (`STDOUT_TRUNCATED`/`STDERR_TRUNCATED`), requires an `Authority`
+  granting `terminal: execute` (else `PermissionError`). Deterministic
+  `ExecResult` (success, returncode, stdout, stderr, warnings, blocked,
+  duration_ms) + `to_dict()`.
+- `.jarvis/skills/terminal/` — manifest + impl wiring the P3b engine as a
+  JARVIS skill (`terminal=execute` permission; scans `active`).
 
-### P4 — Web reader
+### P4 — Web reader (controlled HTTP)
 
-- Server-side `fetch`, http/https only, redirect limit, size cap, SSRF guard.
-- `@web(url)` chat injection (mirrors `@file()`).
+- `jarvis/io/http_client.py` — stdlib-only bounded fetch: http/https only
+  (`SCHEME_BLOCKED`), IPv4 private/reserved literal block (`SSRF_BLOCKED`),
+  blocked ports (`PORT_BLOCKED`), redirect-count cap (`TOO_MANY_REDIRECTS`),
+  response size cap, missing-host guard (`BAD_URL`). Requires `network:
+  read` authority (else `PermissionError`). No external deps.
+- `.jarvis/skills/web/skill.md` — manifest (`network=read`); impl follows
+  in the skill wrapper.
+
+### P3b — Sandboxed terminal skill ✅
+
+Executes user-authorized shell commands with the kernel's authority model:
+
+- `exec/safe.py` — `safe_exec()` returns a typed `OperationResult`; guards
+  run **before** any shell: blocklist-first (`rm -rf`, `sudo`, `dd`, `shutdown`…),
+  cwd pinned inside the workspace (`CWD_ESCAPE`), timeout (`TIMEOUT`),
+  output cap (`STDOUT_TRUNCATED`). No authority → `PermissionError`.
+- `skill run terminal` + `jarvis exec` both invoke it; the skill manifest
+  declares `terminal: execute, filesystem: read, network: none`.
+- 6 guard tests: no-authority, blocklist-before-shell, cwd escape, benign
+  run, timeout, output cap.
+
+### P4 — Web reader (controlled HTTP) ✅
+
+Server-side bounded `fetch` with guards that run **before** any connect:
+
+- `io/http_client.py` — `HttpClient.fetch()` requires `network.read`
+  authority (`PermissionError` otherwise); rejects non-http(s) schemes
+  (`SCHEME_BLOCKED`), IPv4 literals / loopback/link-local (`SSRF_BLOCKED`),
+  non-standard ports (`PORT_BLOCKED`), redirect loops (`TOO_MANY_REDIRECTS`),
+  missing host (`BAD_URL`); caps response size.
+- `skill run web` + `jarvis web` both invoke it; manifest declares
+  `network: read, filesystem: none, terminal: none`.
+- 6 guard tests: authority gate, IPv4 block, scheme block, port block,
+  redirect cap, missing host.
+
+## Planned
 
 ### P5 — Web crawl
 
@@ -174,4 +211,4 @@ P3 + P6 + P1 ──────────────────────�
 
 ---
 
-*Updated: 2026-09-13 — P1+P2+P3+P10 implemented.*
+*Updated: 2026-09-13 — P1+P2+P3+P10+P3b+P4 implemented.*

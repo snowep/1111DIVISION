@@ -102,6 +102,17 @@ def _build_parser() -> argparse.ArgumentParser:
         help="parameters in the form key=value",
     )
 
+    # ---- execution (P3b) ----
+    exec_sub = sub.add_parser("exec", help="safe shell execution (blocklist-first, workspace-pinned)")
+    exec_sub.add_argument("command", nargs="+", help="shell command to run (tokens joined with spaces)")
+    exec_sub.add_argument("--timeout", type=int, default=30, help="timeout in seconds")
+    exec_sub.add_argument("--cwd", default=None, help="working directory (must be inside the workspace)")
+
+    # ---- web reader (P4) ----
+    web_sub = sub.add_parser("web", help="bounded web reader (http/https only, SSRF + size guards)")
+    web_sub.add_argument("url", help="absolute http(s) URL to fetch")
+    web_sub.add_argument("--max-bytes", type=int, default=512 * 1024, help="response size cap")
+
     return p
 
 
@@ -190,6 +201,49 @@ def _cmd_status(args) -> int:
     print("\n## Routing")
     for kind, subdir in sorted(ROUTING.items()):
         print(f"  {kind} -> vault/{subdir}  ({ROUTING_DESCRIPTIONS.get(kind, '')})")
+    return 0
+
+
+def _cmd_exec(args) -> int:
+    from jarvis.exec import safe_exec
+    from jarvis.io.workspace import Authority
+
+    root = Path(args.root) if args.root else DEFAULT_ROOT
+    ws = root.parent.resolve() if str(root).startswith(".jarvis") else root.resolve()
+    auth = Authority(
+        kind="identity", name="JARVIS", scope=str(ws),
+        permissions={"terminal": "execute"},
+    )
+    cwd = Path(args.cwd) if args.cwd else None
+    command = " ".join(args.command)
+    result = safe_exec(
+        command,
+        cwd=cwd,
+        timeout=args.timeout,
+        workspace_root=ws,
+        authority=auth,
+    )
+    print(json.dumps(result.to_dict(), indent=2))
+    return 0 if result.success else 1
+
+
+def _cmd_web(args) -> int:
+    from jarvis.io.http_client import FetchError, HttpClient
+    from jarvis.io.workspace import Authority
+
+    root = Path(args.root) if args.root else DEFAULT_ROOT
+    ws = root.parent.resolve() if str(root).startswith(".jarvis") else root.resolve()
+    auth = Authority(
+        kind="identity", name="JARVIS", scope=str(ws),
+        permissions={"network": "read"},
+    )
+    client = HttpClient(max_bytes=args.max_bytes)
+    try:
+        result = client.fetch(args.url, authority=auth)
+    except (FetchError, PermissionError) as exc:
+        print(json.dumps({"success": False, "error": str(exc)}, indent=2))
+        return 1
+    print(json.dumps(result.to_dict(), indent=2))
     return 0
 
 
@@ -316,6 +370,10 @@ def main(argv: list[str] | None = None) -> int:
             print(f"{args.path}: {note.phase}")
         elif args.command == "skill":
             return _cmd_skill(args)
+        elif args.command == "exec":
+            return _cmd_exec(args)
+        elif args.command == "web":
+            return _cmd_web(args)
         return 0
     except (StoreError, MemoryError, SkillError) as exc:
         print(f"error: {exc}", file=sys.stderr)

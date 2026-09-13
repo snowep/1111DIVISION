@@ -78,8 +78,15 @@ def _validate_short_key(short: str) -> str:
     return short
 
 
-def _validate_perm_value(value: str) -> str:
-    v = value.strip().lower()
+def _validate_perm_value(value: Any) -> str:
+    """Coerce a raw permission value to a canonical level.
+
+    Accepts the literal ``None`` (parser maps YAML ``none`` to Python
+    ``None``) as the explicit "no permission" level.
+    """
+    if value is None or (isinstance(value, str) and value.strip().lower() in ("none", "no")):
+        return "no"
+    v = str(value).strip().lower()
     if v not in _ALLOWED_PERMS:
         raise SkillError(f"invalid permission value {value!r}; expected one of {sorted(_ALLOWED_PERMS)}")
     return v

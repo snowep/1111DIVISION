@@ -14,7 +14,7 @@ Semantics (see docs/ARCHITECTURE.md):
 from __future__ import annotations
 
 import os
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path, PurePosixPath
 from typing import Any, Iterable, Optional
 
@@ -23,11 +23,19 @@ from jarvis.errors import EscapeError, MutationDeniedError, NotFoundError, PathE
 
 @dataclass(frozen=True)
 class Authority:
-    """The acting authority for a mutation (or None for read-only ops)."""
+    """The acting authority for an operation.
 
-    kind: str  # e.g. "identity", "system", "tool"
+    ``kind`` (identity/system/tool/skill), ``name``, ``scope`` (path the
+    authority is permitted to mutate), and ``permissions`` (a dict of
+    capability -> level, e.g. {'terminal': 'execute', 'network': 'read'}).
+    Permission checks live beside the guarded operation (safe_exec,
+    HttpClient.fetch, SafeIO.write_text).
+    """
+
+    kind: str  # e.g. "identity", "system", "tool", "skill"
     name: str
     scope: str  # path the authority is permitted to mutate
+    permissions: dict[str, str] = field(default_factory=dict)  # capability -> level
 
     def __str__(self) -> str:
         return f"{self.kind}:{self.name}"
@@ -38,6 +46,9 @@ class Authority:
             return True
         except ValueError:
             return False
+
+    def grants(self, capability: str, level: str) -> bool:
+        return self.permissions.get(capability) == level
 
 
 class WorkspaceResolver:
