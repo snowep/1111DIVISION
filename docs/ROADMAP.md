@@ -9,6 +9,7 @@
 ## Status
 
 | Phase | Title | Status |
+|-------|-------|--------|
 | P1 | Obsidian-compatible long-term memory | ✅ Implemented (vault routing, provenance, phases) |
 | P2 | Skill manager + permission model | ✅ Implemented (manifest, registry, permission checks) |
 | P3 | Memory filter + self-critique | ✅ Implemented (importance scoring, temporal decay, structured lessons) |
@@ -16,11 +17,12 @@
 | P3b | Sandboxed terminal skill | ✅ Implemented (safe-exec: blocklist, cwd-pin, timeout, cap, authority) |
 | P4 | Web reader (controlled HTTP) | ✅ Implemented (SSRF/IP/port/scheme/redirect/size guards, authority) |
 | P5 | Web crawl (structured traversal) | ✅ Implemented (depth/domain/robots/dedupe caps, output to vault/semantic/) |
-| P6 | GitHub skill importer | 🔲 Next |
-| P7 | Self-learn (lesson consolidation) | 🔲 |
+| P6 | GitHub skill importer | ✅ Implemented (DISCOVER→INSPECT→VALIDATE→ISOLATE→ADAPT→TEST→INTEGRATE, approval gate) |
+| P7 | Self-learn (lesson consolidation) | 🔲 Next |
 | P8 | Self-adaptation (preference learning) | 🔲 |
 | P9 | Self-evolution (code + UI changes) | 🔲 |
 | P11 | Autonomy + governance layer | 🔲 |
+
 ## Completed
 
 ### P1 — Obsidian-compatible long-term memory ✅
@@ -33,10 +35,11 @@ system:
   confidence, valid_until, provenance, phase, importance`.
 - Routing matrix: memory type → vault subdirectory, extensible via
   `update_routing()`.
-- Provenance chains: notes carry `provenance.based_on` links; `provenance_chain()`
-  resolves them.
-- Lifecycle phases: `OBSERVED → INTERPRETED → CANDIDATE → VERIFIED → ACTIVE → SUPERSEDED`
-  (+ `REJECTED`, `DEPRECATED`), enforced by `VALID_TRANSITIONS`.
+- Provenance chains: notes carry `provenance.based_on` links;
+  `provenance_chain()` resolves them.
+- Lifecycle phases: `OBSERVED → INTERPRETED → CANDIDATE → VERIFIED →
+  ACTIVE → SUPERSEDED` (+ `REJECTED`, `DEPRECATED`), enforced by
+  `VALID_TRANSITIONS`.
 - Temporal pruning: `valid_until`; `forget_expired()` archives (SUPERSEDED,
   never deletes) expired notes.
 - `observe()`: heuristic transcript → vault routing pass (proposal stage).
@@ -69,35 +72,26 @@ Adds the JARVIS Master Prompt Section 10 (Memory Filter) and Section 68
   importance desc, then updated date.
 - `memory/observe.py` — harvested statements are auto-weighted + decayed.
 - `memory/critique.py` — `critique_task()` turns a failed task into
-  structured lessons (wrong assumption, corrected understanding) stored as
-  `kind: learned` notes.
+  structured lessons (wrong assumption, corrected understanding) stored
+  under `vault/learned/` with provenance.
 
 ### P10 — Deterministic runtime kernel ✅
 
-The kernel is the deterministic, inspectable substrate the intelligence
-layer (JARVIS in Open WebUI) runs on. Everything is pure Python over the
-existing Markdown architecture — no vector search, no web UI, no autonomous
-execution, no LLM-as-authority:
+The runtime substrate every capability runs on:
 
-- `errors/` — typed, inspectable error hierarchy with stable `code` values
-  (`PATH_ESCAPE`, `MISSING_FIELD`, `DUPLICATE_ID`, `INVALID_STATUS`,
-  `BROKEN_REF`, `MUTATION_DENIED`, `CORRUPT_STATE`, `IDENTITY_ERROR`, ...).
-  The kernel **never silently repairs corrupted state** — it raises.
-- `models/` — `OperationResult` (success, operation_id, data, warnings,
-  errors, provenance) returned by every kernel operation; deterministic
-  serialization.
-- `runtime/` — `resolve_root()` finds the canonical workspace root
-  (explicit arg → `JARVIS_ROOT` env → walk up from cwd to `.jarvis/`);
-  `build_runtime()` constructs the full `Runtime` (roots + resolver + io +
-  identity) eagerly, failing fast with a typed error.
-- `io/` — `WorkspaceResolver` (safe path resolution: traversal, absolute
-  paths, symlink/UNC escapes blocked; semantic aliases `vault/ council/
-  skills/ core/ learn/` resolve to their canonical `.jarvis/` locations)
-  and `SafeIO` (reads always allowed; **writes require an `Authority`
-  in-scope or raise `MUTATION_DENIED`**).
-- `core/` — `load_identity()` reads identity **only from `.jarvis/core`
-  (identity.json or identity.md)**. Open WebUI config / env vars are never
-  an identity source.
+- `core/roots.py` — canonical workspace root (workspace marker + `src/`,
+  `tests/`, `docs/`); `resolve_path()` confines any user path under the
+  root; `authority_for()` binds an `Authority` (kind/name/scope/permissions)
+  and `permits()` checks scope containment — traversal is refused before
+  any IO.
+- `core/identity.py` — JARVIS identity is loaded ONLY from `.jarvis/core/`
+  files (identity.md, constitution.md, platform.md, system.md); never from
+  Open WebUI config; missing/duplicate files raise typed errors.
+- `io/workspace.py` — `WorkspaceResolver` maps semantic aliases (`vault`,
+  `council`, `skills`) to canonical `.jarvis/` locations.
+- `models/records.py` — `MemoryRecord` (id, kind, content, tags, source,
+  status, importance, provenance, timestamps, links) with typed validation;
+  `ValidationError` for any malformed input.
 - `validation/` — `load_document()` / `load_all()` parse frontmatter into
   typed `LoadedDocument`s and enforce required fields, duplicate IDs,
   allowed statuses, and broken reference checks.
@@ -106,39 +100,20 @@ execution, no LLM-as-authority:
   task → persona → user`; index 0 = highest). Lower layers never override
   higher ones — `apply_override(caller=...)` raises `CONTEXT_ERROR` on a
   priority violation. Assembly is deterministic.
-
-### P3b — Sandboxed terminal skill
-
-- `jarvis/exec/safe.py` — `safe_exec()`: blocklist-first (dangerous
-  prefixes refused before any shell), cwd pinned inside workspace
-  (else `CWD_ESCAPE`), timeout (else `TIMEOUT`), stdout/stderr size caps
-  (`STDOUT_TRUNCATED`/`STDERR_TRUNCATED`), requires an `Authority`
-  granting `terminal: execute` (else `PermissionError`). Deterministic
-  `ExecResult` (success, returncode, stdout, stderr, warnings, blocked,
-  duration_ms) + `to_dict()`.
-- `.jarvis/skills/terminal/` — manifest + impl wiring the P3b engine as a
-  JARVIS skill (`terminal=execute` permission; scans `active`).
-
-### P4 — Web reader (controlled HTTP)
-
-- `jarvis/io/http_client.py` — stdlib-only bounded fetch: http/https only
-  (`SCHEME_BLOCKED`), IPv4 private/reserved literal block (`SSRF_BLOCKED`),
-  blocked ports (`PORT_BLOCKED`), redirect-count cap (`TOO_MANY_REDIRECTS`),
-  response size cap, missing-host guard (`BAD_URL`). Requires `network:
-  read` authority (else `PermissionError`). No external deps.
-- `.jarvis/skills/web/skill.md` — manifest (`network=read`); impl follows
-  in the skill wrapper.
+- `errors/` — typed, inspectable errors (`JarvisError` hierarchy, codes,
+  structured `.to_dict()`); never silent repair.
 
 ### P3b — Sandboxed terminal skill ✅
 
 Executes user-authorized shell commands with the kernel's authority model:
 
 - `exec/safe.py` — `safe_exec()` returns a typed `OperationResult`; guards
-  run **before** any shell: blocklist-first (`rm -rf`, `sudo`, `dd`, `shutdown`…),
-  cwd pinned inside the workspace (`CWD_ESCAPE`), timeout (`TIMEOUT`),
-  output cap (`STDOUT_TRUNCATED`). No authority → `PermissionError`.
-- `skill run terminal` + `jarvis exec` both invoke it; the skill manifest
-  declares `terminal: execute, filesystem: read, network: none`.
+  run before any shell: blocklist-first (dangerous prefixes refused),
+  cwd pinned inside workspace (`CWD_ESCAPE`), timeout (`TIMEOUT`),
+  stdout/stderr size caps (`STDOUT_TRUNCATED`/`STDERR_TRUNCATED`),
+  authority required (`terminal: execute`).
+- `.jarvis/skills/terminal/` — manifest + impl wiring the P3b engine as a
+  JARVIS skill (`terminal=execute` permission; scans `active`).
 - 6 guard tests: no-authority, blocklist-before-shell, cwd escape, benign
   run, timeout, output cap.
 
@@ -179,22 +154,32 @@ content type) and a deterministic URL-hash filename.
   `test_phase10_web_exec.py`. Loopback SSRF is deliberately blocked by
   design (no production vulnerability), so crawl tests avoid real network.
 
+### P6 — GitHub skill importer ✅
+
+- `src/jarvis/skills/import_github.py` — full pipeline: DISCOVER (GitHub
+  API tree scan for `skill.md`) → INSPECT (fetch + parse manifest with the
+  P2 parser) → VALIDATE (required fields + permissions mapping) → ISOLATE
+  (copies only manifest + entry into `.jarvis/skills/<name>/`, never
+  overwrites, never executes remote code) → ADAPT (best-effort `$REPO`
+  rewrite) → TEST (manifest reloads) → INTEGRATE (registry rebuilt).
+- Human approval gate: imports default to `needs-approval`; permissions
+  are surfaced in the report, nothing is auto-granted.
+- 10 tests in `tests/test_phase10_p6.py`: manifest parse/validate, tree
+  discovery, no-manifest rejection, bad-manifest rejection, $REPO adapt,
+  approval gate (nothing installed without approval), approved install,
+  overwrite refusal. All network is monkeypatched — hermetic.
+
 ## Planned
-
-### P6 — GitHub skill importer
-
-- Pipeline: DISCOVER → INSPECT → VALIDATE manifest → ISOLATE → ADAPT → TEST →
-  INTEGRATE, with human approval gate for permission requests.
-- Never blindly imports "all skills" (credential-harvester risk).
 
 ### P7 — Self-learn
 
-- Post-task review → `vault/failures/` + `vault/procedural/`, dedupe heuristic.
+- Post-task review → `vault/failures/` + `vault/procedural/`, dedupe
+  heuristic.
 
 ### P8 — Self-adaptation
 
-- Correction/preference detection → `vault/semantic/preferences.md`; supersede
-  not ghost.
+- Correction/preference detection → `vault/semantic/preferences.md`;
+  supersede not ghost.
 
 ### P9 — Self-evolution
 
@@ -203,7 +188,10 @@ content type) and a deterministic URL-hash filename.
 
 ### P11 — Autonomy + governance
 
-- Global permission gates, confirmation dialogs, full audit log, eval harness.## Principles
+- Global permission gates, confirmation dialogs, full audit log, eval
+  harness.
+
+## Principles
 
 1. **Canonical vs derived.** Vault notes are canonical. `learn/`, registry,
    indexes, summaries are derived — always rebuildable, never authoritative.
@@ -223,7 +211,3 @@ P1 Memory ──┬──► P7 Self-Learn ──► P8 Self-Adapt
                              └──► P4 Web ──► P5 Crawl / P6 GitHub ──► P9 Self-Evolve
 P3 + P6 + P1 ───────────────────────────────────────────────────────► P9 ──► P10 Kernel ──► P11
 ```
-
----
-
-*Updated: 2026-09-13 — P1+P2+P3+P10+P3b+P4+P5 implemented.*
