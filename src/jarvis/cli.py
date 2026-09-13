@@ -1,4 +1,8 @@
-"""Command-line interface: jarvis new|list|read|edit|delete|learn|seed|remember|status|forget|verify|supersede|skill."""
+"""Command-line interface covering the full P1-P10 loop.
+
+jarvis new|list|read|edit|delete|learn|seed|remember|status|forget|
+verify|supersede|skill|exec|web|crawl|import-gh|evolve
+"""
 from __future__ import annotations
 
 import argparse
@@ -112,6 +116,54 @@ def _build_parser() -> argparse.ArgumentParser:
     web_sub = sub.add_parser("web", help="bounded web reader (http/https only, SSRF + size guards)")
     web_sub.add_argument("url", help="absolute http(s) URL to fetch")
     web_sub.add_argument("--max-bytes", type=int, default=512 * 1024, help="response size cap")
+
+    # ---- bounded web crawl (P5) ----
+    crawl_sub = sub.add_parser("crawl", help="bounded web crawl (robots, depth, pages, domain lock)")
+    crawl_sub.add_argument("seed", help="seed URL to crawl from")
+    crawl_sub.add_argument("--max-depth", type=int, default=2, help="max link depth")
+    crawl_sub.add_argument("--max-pages", type=int, default=10, help="max pages to fetch")
+    crawl_sub.add_argument("--robots", action=argparse.BooleanOptionalAction, default=True,
+                           help="obey robots.txt (default: on)")
+    crawl_sub.add_argument("--stay-on-domain", action=argparse.BooleanOptionalAction, default=True,
+                           help="lock traversal to the seed domain (default: on)")
+    crawl_sub.add_argument("--out-dir", default=None,
+                           help="output directory; must be inside the workspace "
+                                "(default: <root>/vault/semantic)")
+
+    # ---- github skill import (P6) ----
+    import_sub = sub.add_parser(
+        "import-gh",
+        help="import a skill from a GitHub repo (DISCOVER->INSPECT->VALIDATE->"
+             "ISOLATE->ADAPT->TEST->INTEGRATE; never executes remote code)",
+    )
+    import_sub.add_argument("repo", help="owner/repo to import from")
+    import_sub.add_argument("--approve", action="store_true",
+                            help="approve the permission request and install the skill")
+    import_sub.add_argument("--token", default="",
+                            help="GitHub token (default: GITHUB_TOKEN env var)")
+
+    # ---- self-evolution (P9): propose -> validate -> apply -> revert ----
+    evolve_sub = sub.add_parser(
+        "evolve",
+        help="propose/validate/apply/revert repo changes with no silent edits",
+    )
+    evolve_actions = evolve_sub.add_subparsers(dest="evolve_action", required=True)
+    ev_check = evolve_actions.add_parser("check", help="propose + run validation gates only (no mutation)")
+    ev_check.add_argument("--title", required=True)
+    ev_check.add_argument("--description", default="")
+    ev_check.add_argument("--change", action="append", required=True,
+                          help='JSON FileChange, e.g. {"path":"src/x.py","operation":"create","after":"x=1"}')
+    ev_check.add_argument("--repo", default=None, help="repo path (default: git discovery from cwd)")
+    ev_apply = evolve_actions.add_parser("apply", help="validate then apply a proposal (requires --approve)")
+    ev_apply.add_argument("--title", required=True)
+    ev_apply.add_argument("--description", default="")
+    ev_apply.add_argument("--change", action="append", required=True,
+                          help='JSON FileChange, e.g. {"path":"src/x.py","operation":"create","after":"x=1"}')
+    ev_apply.add_argument("--approve", action="store_true", help="required for any tree mutation")
+    ev_apply.add_argument("--repo", default=None, help="repo path (default: git discovery from cwd)")
+    ev_revert = evolve_actions.add_parser("revert", help="git revert a commit (reversible history)")
+    ev_revert.add_argument("commit", help="commit hash to revert")
+    ev_revert.add_argument("--repo", default=None, help="repo path (default: git discovery from cwd)")
 
     return p
 
@@ -247,6 +299,127 @@ def _cmd_web(args) -> int:
     return 0
 
 
+def _workspace(args, root: Path) -> Path:
+    """Resolve the workspace root that contains the ``.jarvis`` data folder.
+
+    The import engine and the crawl authority both treat the workspace as
+    the directory *containing* ``.jarvis/`` (so ``<ws>/.jarvis/skills`` is
+    the sandbox). A root literally named ``.jarvis`` therefore maps to its
+    parent; any other root is used as-is.
+    """
+    root = Path(root)
+    if root.name == ".jarvis":
+        return root.parent.resolve()
+    return root.resolve()
+
+
+def _cmd_crawl(args) -> int:
+    from jarvis.crawl import CrawlError, Crawler
+    from jarvis.io.workspace import Authority
+
+    root = Path(args.root) if args.root else DEFAULT_ROOT
+    store = _store(args)
+    ws = _workspace(args, root)
+    out_dir = Path(args.out_dir) if args.out_dir else store.vault_dir / "semantic"
+    auth = Authority(
+        kind="identity", name="JARVIS", scope=str(ws),
+        permissions={"network": "read", "filesystem": "write"},
+    )
+    crawler = Crawler(
+        robots=args.robots,
+        max_depth=args.max_depth,
+        max_pages=args.max_pages,
+        stay_on_domain=args.stay_on_domain,
+    )
+    try:
+        report = crawler.crawl(args.seed, authority=auth, out_dir=out_dir)
+    except CrawlError as exc:
+        print(json.dumps({"success": False, "error": str(exc)}, indent=2))
+        return 1
+    print(json.dumps(report, indent=2))
+    return 0
+
+
+def _cmd_import_gh(args) -> int:
+    import os
+
+    from jarvis.skills.import_github import ImportReport, install_skill
+
+    root = Path(args.root) if args.root else DEFAULT_ROOT
+    ws = _workspace(args, root)
+    # The importer resolves its sandbox from JARVIS_WORKSPACE; align it with
+    # the same workspace the --root flag selects (engine stays unchanged).
+    os.environ["JARVIS_WORKSPACE"] = str(ws)
+    report: ImportReport = install_skill(args.repo, approve=args.approve, token=args.token)
+    print(json.dumps(report.to_dict(), indent=2))
+    if report.status in ("failed", "rejected"):
+        return 1
+    if report.status == "needs-approval":
+        print("pending approval: rerun with --approve to install", file=sys.stderr)
+        return 0
+    return 0
+
+
+def _parse_changes(raw_changes: list[str]) -> list:
+    from jarvis.evolution.engine import FileChange
+
+    changes = []
+    for raw in raw_changes:
+        try:
+            data = json.loads(raw)
+        except json.JSONDecodeError as exc:
+            raise ValueError(f"change must be a JSON object: {exc}")
+        if not isinstance(data, dict) or "path" not in data:
+            raise ValueError(f"change must be a JSON object with a 'path': {raw}")
+        data.setdefault("operation", "modify")
+        data.setdefault("before", "")
+        data.setdefault("after", "")
+        changes.append(FileChange(**{k: data[k] for k in ("path", "before", "after", "operation")}))
+    return changes
+
+
+def _cmd_evolve(args) -> int:
+    from jarvis.evolution.engine import EvolutionError, apply, propose, revert, validate
+
+    # The engine's path operations need a Path, not the raw CLI string.
+    repo = Path(args.repo) if args.repo else None
+
+    if args.evolve_action in ("apply", "check"):
+        proposal = propose(args.title, args.description, _parse_changes(args.change))
+        gates = validate(proposal, repo=repo)
+        result = {"proposal": proposal.to_dict(), "gates": gates}
+        if not gates.get("ok"):
+            print(json.dumps(result, indent=2))
+            print("error: validation gates failed; refusing to apply", file=sys.stderr)
+            return 1
+        if args.evolve_action == "check":
+            print(json.dumps(result, indent=2))
+            return 0
+        if not args.approve:
+            print(json.dumps(result, indent=2))
+            print("error: refusing to apply without --approve", file=sys.stderr)
+            return 1
+        try:
+            applied = apply(proposal, approved=True, repo=repo)
+        except EvolutionError as exc:
+            print(json.dumps(result, indent=2))
+            print(f"error: {exc}", file=sys.stderr)
+            return 1
+        result["applied"] = applied.to_dict()
+        print(json.dumps(result, indent=2))
+        return 0
+    if args.evolve_action == "revert":
+        try:
+            head = revert(args.commit, repo=repo)
+        except EvolutionError as exc:
+            print(f"error: {exc}", file=sys.stderr)
+            return 1
+        print(json.dumps({"reverted": args.commit, "head": head}, indent=2))
+        return 0
+    print("error: unknown evolve action", file=sys.stderr)
+    return 1
+
+
 def _cmd_skill(args) -> int:
     root = Path(args.root) if args.root else DEFAULT_ROOT
     if args.skill_command == "scan":
@@ -374,8 +547,14 @@ def main(argv: list[str] | None = None) -> int:
             return _cmd_exec(args)
         elif args.command == "web":
             return _cmd_web(args)
+        elif args.command == "crawl":
+            return _cmd_crawl(args)
+        elif args.command == "import-gh":
+            return _cmd_import_gh(args)
+        elif args.command == "evolve":
+            return _cmd_evolve(args)
         return 0
-    except (StoreError, MemoryError, SkillError) as exc:
+    except (StoreError, MemoryError, SkillError, ValueError) as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 1
 
