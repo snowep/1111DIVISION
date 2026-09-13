@@ -20,8 +20,8 @@
 | P6 | GitHub skill importer | ✅ Implemented (DISCOVER→INSPECT→VALIDATE→ISOLATE→ADAPT→TEST→INTEGRATE, approval gate) |
 | P7 | Self-learn (lesson consolidation) | ✅ Implemented (dedupe by fingerprint, procedures, derived index) |
 | P8 | Self-adaptation (preference learning) | ✅ Implemented (correction/preference signals → supersede conflicts, derived summary) |
-| P9 | Self-evolution (code + UI changes) | 🔲 Next |
-| P11 | Autonomy + governance layer | 🔲 |
+| P9 | Self-evolution (code + UI changes) | ✅ Implemented (propose→validate on scratch→apply→revert, no silent edits) |
+| P11 | Autonomy + governance layer | 🔲 Next |
 
 ## Completed
 
@@ -201,12 +201,24 @@ content type) and a deterministic URL-hash filename.
   reflects only active, reinforcement unchanged, unknown-kind ignored
   (nothing written).
 
+### P9 — Self-evolution ✅
+
+- `src/jarvis/evolution/engine.py` — propose → validate → apply → revert:
+  - `propose(title, desc, changes)` builds a pure `Proposal` (FileChange
+    list; create/modify/delete).
+  - `validate(proposal)` runs the gates (structure check + `pytest -q`)
+    against a SCRATCH mirror of the repo with the proposal applied — the
+    real tree is never touched during validation.
+  - `apply(proposal, approved=True)` is the ONLY mutation: applies the
+    change, `git add` + `commit` (title/description), records the commit
+    hash; refuses without approval and refuses double-apply.
+  - `revert(commit)` = `git revert --no-edit` (reversible history).
+- 6 tests in `tests/test_phase10_p9.py` (hermetic, fake subprocess):
+  pure proposal, validate-on-scratch (real tree untouched + gate result),
+  apply-without-approval refused, apply commits+records hash, double-apply
+  refused, create-refuses-overwrite.
+
 ## Planned
-
-### P9 — Self-evolution
-
-- Propose diff → structure check + pytest → show diff → on approval apply +
-  commit + push; no silent edits, rollback = `git revert`.
 
 ### P11 — Autonomy + governance
 
