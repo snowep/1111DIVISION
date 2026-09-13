@@ -95,7 +95,6 @@ def build_index(store: DocumentStore) -> dict[str, Any]:
         )
     docs.sort(key=lambda d: d["path"])
     return {
-        "generated_at": store._now(),
         "document_count": len(docs),
         "kinds": dict(sorted(kinds.items())),
         "tags": dict(sorted(tag_counter.items())),

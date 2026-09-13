@@ -19,8 +19,8 @@
 | P5 | Web crawl (structured traversal) | ✅ Implemented (depth/domain/robots/dedupe caps, output to vault/semantic/) |
 | P6 | GitHub skill importer | ✅ Implemented (DISCOVER→INSPECT→VALIDATE→ISOLATE→ADAPT→TEST→INTEGRATE, approval gate) |
 | P7 | Self-learn (lesson consolidation) | ✅ Implemented (dedupe by fingerprint, procedures, derived index) |
-| P8 | Self-adaptation (preference learning) | 🔲 Next |
-| P9 | Self-evolution (code + UI changes) | 🔲 |
+| P8 | Self-adaptation (preference learning) | ✅ Implemented (correction/preference signals → supersede conflicts, derived summary) |
+| P9 | Self-evolution (code + UI changes) | 🔲 Next |
 | P11 | Autonomy + governance layer | 🔲 |
 
 ## Completed
@@ -183,12 +183,25 @@ content type) and a deterministic URL-hash filename.
   index + procedure extraction, idempotence (no duplicate procedures),
   empty-vault run.
 
+### P8 — Self-adaptation ✅
+
+- `src/jarvis/memory/adapt.py` — `apply_signal(store, Signal)` records a
+  structured correction/preference/reinforcement signal as a semantic
+  preference note (`vault/semantic/`, `kind: preference`, subject key).
+  A NEW preference on the same subject SUPERSEDES the old one (memory
+  lifecycle + provenance `based_on`) instead of ghosting it; an identical
+  statement is a no-op reinforcement. Rebuilds the DERIVED
+  `vault/semantic/preferences.md` summary each run (never authoritative,
+  never hand-edited). Deterministic ids (subject + statement hash).
+- Bonus fix: `src/jarvis/learn/engine.py` no longer embeds wall-clock
+  `generated_at` in the machine index — the derived index is truly
+  deterministic (was a latent flake in `test_learn.py`).
+- 5 tests in `tests/test_phase10_p8.py`: subject normalization, new-
+  preference creation + summary, conflict supersede + provenance + summary
+  reflects only active, reinforcement unchanged, unknown-kind ignored
+  (nothing written).
+
 ## Planned
-
-### P8 — Self-adaptation
-
-- Correction/preference detection → `vault/semantic/preferences.md`;
-  supersede not ghost.
 
 ### P9 — Self-evolution
 
