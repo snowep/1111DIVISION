@@ -18,8 +18,8 @@
 | P4 | Web reader (controlled HTTP) | ✅ Implemented (SSRF/IP/port/scheme/redirect/size guards, authority) |
 | P5 | Web crawl (structured traversal) | ✅ Implemented (depth/domain/robots/dedupe caps, output to vault/semantic/) |
 | P6 | GitHub skill importer | ✅ Implemented (DISCOVER→INSPECT→VALIDATE→ISOLATE→ADAPT→TEST→INTEGRATE, approval gate) |
-| P7 | Self-learn (lesson consolidation) | 🔲 Next |
-| P8 | Self-adaptation (preference learning) | 🔲 |
+| P7 | Self-learn (lesson consolidation) | ✅ Implemented (dedupe by fingerprint, procedures, derived index) |
+| P8 | Self-adaptation (preference learning) | 🔲 Next |
 | P9 | Self-evolution (code + UI changes) | 🔲 |
 | P11 | Autonomy + governance layer | 🔲 |
 
@@ -169,12 +169,21 @@ content type) and a deterministic URL-hash filename.
   approval gate (nothing installed without approval), approved install,
   overwrite refusal. All network is monkeypatched — hermetic.
 
+### P7 — Self-learn ✅
+
+- `src/jarvis/memory/learn.py` — `consolidate_lessons()` scans
+  `vault/learned/` + `vault/failures/` for lesson notes, dedupes by a
+  normalized lesson-text fingerprint (newest `updated` wins, older
+  duplicates are phase-superseded and provenance-linked via `based_on`),
+  extracts one reusable procedure per distinct lesson into
+  `vault/procedural/` (`kind: procedure`, provenance to source lessons),
+  and rebuilds the DERIVED `vault/learned/_index.md` (never authoritative,
+  never hand-edited). Deterministic: same vault → same result.
+- 4 tests in `tests/test_phase10_p7.py`: normalize/fingerprint, dedupe +
+  index + procedure extraction, idempotence (no duplicate procedures),
+  empty-vault run.
+
 ## Planned
-
-### P7 — Self-learn
-
-- Post-task review → `vault/failures/` + `vault/procedural/`, dedupe
-  heuristic.
 
 ### P8 — Self-adaptation
 
