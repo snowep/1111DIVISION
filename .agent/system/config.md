@@ -23,6 +23,12 @@ personas:
   isolation: true
   auto_promote: false
   promotion_review_required: true
+  default_structure:
+    - identity.md
+    - memory.md
+    - knowledge/
+    - skills/
+    - experience/
 ```
 
 ## Memory Configuration
@@ -108,3 +114,68 @@ evolution:
   require_evidence: true
   auto_apply: false
 ```
+
+## Workspace Structure
+
+```yaml
+workspace:
+  root: "D:/Project/1111DIVISION/"
+  agent: ".agent/"
+  projects: "projects/"
+  research: "research/"
+  experiments: "experiments/"
+```
+
+## Agent Backbone (Authoritative)
+
+```yaml
+agent_backbone:
+  orion:
+    - identity.md
+    - memory.md
+    - knowledge/
+    - skills/
+    - experience.md
+    - evolution/
+  personas:
+    _template:
+      - identity.md
+      - memory.md
+      - knowledge/
+      - skills/
+      - experience/
+    researcher:
+      - identity.md
+      - memory.md
+      - knowledge/
+      - skills/
+      - experience/
+    developer:
+      - identity.md
+      - memory.md
+      - knowledge/
+      - skills/
+      - experience/
+    designer:
+      - identity.md
+      - memory.md
+      - knowledge/
+      - skills/
+      - experience/
+    analyst:
+      - identity.md
+      - memory.md
+      - knowledge/
+      - skills/
+      - experience/
+  shared:
+    memory/
+    knowledge/
+    experience/
+  tasks/
+  sessions/
+  system/
+```
+
+---
+*This configuration defines the authoritative backbone structure. Empty directories are intentional scaffolding for future instantiation.*

@@ -27,6 +27,55 @@ ORION is the orchestrator responsible for:
 
 ---
 
+## Authority Structure
+
+```
+ORION (Orchestrator)
+│
+├── Researcher (Persona)
+│   ├── identity.md
+│   ├── memory.md (private)
+│   ├── knowledge/ (private)
+│   ├── skills/ (private)
+│   └── experience/ (private)
+│
+├── Developer (Persona)
+│   ├── identity.md
+│   ├── memory.md (private)
+│   ├── knowledge/ (private)
+│   ├── skills/ (private)
+│   └── experience/ (private)
+│
+├── Designer (Persona)
+│   ├── identity.md
+│   ├── memory.md (private)
+│   ├── knowledge/ (private)
+│   ├── skills/ (private)
+│   └── experience/ (private)
+│
+├── Analyst (Persona)
+│   ├── identity.md
+│   ├── memory.md (private)
+│   ├── knowledge/ (private)
+│   ├── skills/ (private)
+│   └── experience/ (private)
+│
+└── ... (future personas)
+```
+
+---
+
+## Knowledge Layer Hierarchy
+
+```
+Layer 1: Persona Knowledge     (.agent/personas/*/knowledge/)  — Private, domain-specific
+Layer 2: Shared Knowledge      (.agent/shared/knowledge/)      — Cross-persona, promoted
+Layer 3: ORION Knowledge       (.agent/orion/knowledge/)       — System, architecture, protocols
+Layer 4: Project Knowledge     (projects/*/knowledge/)         — Project-specific, assigned
+```
+
+---
+
 ## Boundaries
 
 ORION does NOT:
@@ -65,5 +114,41 @@ ORION does NOT:
 3. **Experience is earned** — EXP awarded after evaluation, not activity
 4. **Evolution requires evidence** — Propose, test, validate, then adopt
 5. **Persona isolation by default** — Share only when justified
-5. **Minimal assumption** — Inspect before assuming
-6. **Source of truth is the workspace** — Not hidden context
+6. **Minimal assumption** — Inspect before assuming
+7. **Source of truth is the workspace** — Not hidden context
+
+---
+
+## Delegation Protocol
+
+```
+TASK RECEIVED
+    │
+    ▼
+UNDERSTAND → INSPECT → PLAN
+    │           │          │
+    │           │          ▼
+    │           │      DELEGATE TO PERSONA
+    │           │          │
+    │           │          ▼
+    │           │      EXECUTE → VERIFY → CRITIQUE
+    │           │          │
+    │           ▼          ▼
+    │      ORION REVIEW ← RESULTS
+    │           │
+    ▼           ▼
+REPORT ←───── COMPLETE
+```
+
+---
+
+## Active Personas (Registry)
+
+| Persona | Status | Purpose | Created |
+|---------|--------|---------|---------|
+| Researcher | Scaffolded | Research, investigation, synthesis | — |
+| Developer | Scaffolded | Implementation, engineering, code | — |
+| Designer | Scaffolded | Design, UX, architecture, visual | — |
+| Analyst | Scaffolded | Analysis, evaluation, modeling | — |
+
+*Personas are scaffolded (structure exists). Instantiation happens on first activation.*
