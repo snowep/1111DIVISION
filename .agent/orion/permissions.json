@@ -1,0 +1,459 @@
+{
+  "version": "1.0",
+  "updated": "2025-09-18T22:55:00.000000",
+  "rules": [
+    {
+      "category": "files",
+      "operation": "read",
+      "level": "autonomous",
+      "patterns": [],
+      "conditions": [],
+      "reason": "Reading files is safe and necessary for context"
+    },
+    {
+      "category": "files",
+      "operation": "write",
+      "level": "autonomous",
+      "patterns": [
+        "**/tmp/**",
+        "**/temp/**",
+        "**/*.tmp",
+        "**/*.temp",
+        "**/experiments/**"
+      ],
+      "conditions": [],
+      "reason": "Temporary/experimental files are safe to create"
+    },
+    {
+      "category": "files",
+      "operation": "write",
+      "level": "autonomous",
+      "patterns": [
+        "**/tests/**",
+        "**/test_*.py",
+        "**/*_test.py",
+        "**/__pycache__/**"
+      ],
+      "conditions": [],
+      "reason": "Test files are safe to create/modify"
+    },
+    {
+      "category": "files",
+      "operation": "write",
+      "level": "autonomous",
+      "patterns": [
+        "**/*.md",
+        "**/*.txt",
+        "**/*.json",
+        "**/*.yaml",
+        "**/*.yml"
+      ],
+      "conditions": [],
+      "reason": "Documentation and config files are normally safe"
+    },
+    {
+      "category": "files",
+      "operation": "write",
+      "level": "confirm",
+      "patterns": [
+        "**/.env*",
+        "**/secrets/**",
+        "**/credentials/**",
+        "**/*.key",
+        "**/*.pem"
+      ],
+      "conditions": [],
+      "reason": "Secrets and credentials require confirmation"
+    },
+    {
+      "category": "files",
+      "operation": "write",
+      "level": "confirm",
+      "patterns": [
+        "**/package.json",
+        "**/requirements.txt",
+        "**/pyproject.toml",
+        "**/Cargo.toml"
+      ],
+      "conditions": [],
+      "reason": "Dependency manifests affect entire project"
+    },
+    {
+      "category": "files",
+      "operation": "delete",
+      "level": "autonomous",
+      "patterns": [
+        "**/tmp/**",
+        "**/temp/**",
+        "**/*.tmp",
+        "**/*.temp",
+        "**/__pycache__/**",
+        "**/*.pyc"
+      ],
+      "conditions": [],
+      "reason": "Cleanup of temp/cache files is safe"
+    },
+    {
+      "category": "files",
+      "operation": "delete",
+      "level": "confirm",
+      "patterns": [
+        "**/.git/**",
+        "**/*.db",
+        "**/*.sqlite",
+        "**/data/**",
+        "**/production/**"
+      ],
+      "conditions": [],
+      "reason": "Deleting data, git history, or production files requires confirmation"
+    },
+    {
+      "category": "code",
+      "operation": "read",
+      "level": "autonomous",
+      "patterns": [],
+      "conditions": [],
+      "reason": "Reading code is safe"
+    },
+    {
+      "category": "code",
+      "operation": "write",
+      "level": "autonomous",
+      "patterns": [
+        "**/experiments/**",
+        "**/tests/**",
+        "**/test_*.py"
+      ],
+      "conditions": [],
+      "reason": "Experimental and test code changes are safe"
+    },
+    {
+      "category": "code",
+      "operation": "write",
+      "level": "autonomous",
+      "patterns": [],
+      "conditions": [],
+      "reason": "Normal project code modifications are autonomous"
+    },
+    {
+      "category": "code",
+      "operation": "execute",
+      "level": "autonomous",
+      "patterns": [
+        "**/test_*.py",
+        "**/*_test.py",
+        "**/tests/**",
+        "pytest",
+        "jest",
+        "npm test"
+      ],
+      "conditions": [],
+      "reason": "Running tests is safe and encouraged"
+    },
+    {
+      "category": "code",
+      "operation": "execute",
+      "level": "autonomous",
+      "patterns": [
+        "lint",
+        "format",
+        "typecheck",
+        "mypy",
+        "ruff",
+        "eslint",
+        "prettier"
+      ],
+      "conditions": [],
+      "reason": "Linting/formatting/type-checking are safe"
+    },
+    {
+      "category": "code",
+      "operation": "execute",
+      "level": "confirm",
+      "patterns": [
+        "deploy",
+        "release",
+        "publish",
+        "docker push",
+        "kubectl apply",
+        "terraform apply"
+      ],
+      "conditions": [],
+      "reason": "Production deployment requires confirmation"
+    },
+    {
+      "category": "code",
+      "operation": "delete",
+      "level": "confirm",
+      "patterns": [
+        "**/src/**",
+        "**/lib/**",
+        "**/app/**",
+        "**/core/**"
+      ],
+      "conditions": [],
+      "reason": "Deleting core source code requires confirmation"
+    },
+    {
+      "category": "web",
+      "operation": "read",
+      "level": "autonomous",
+      "patterns": [],
+      "conditions": [],
+      "reason": "Web search and reading documentation is safe"
+    },
+    {
+      "category": "web",
+      "operation": "write",
+      "level": "confirm",
+      "patterns": [],
+      "conditions": [],
+      "reason": "Posting data to web endpoints requires confirmation"
+    },
+    {
+      "category": "web",
+      "operation": "execute",
+      "level": "confirm",
+      "patterns": [],
+      "conditions": [],
+      "reason": "Web actions with side effects require confirmation"
+    },
+    {
+      "category": "web",
+      "operation": "external_action",
+      "level": "confirm",
+      "patterns": [],
+      "conditions": [],
+      "reason": "External API calls with side effects require confirmation"
+    },
+    {
+      "category": "terminal",
+      "operation": "read",
+      "level": "autonomous",
+      "patterns": [
+        "ls",
+        "dir",
+        "cat",
+        "type",
+        "head",
+        "tail",
+        "grep",
+        "find",
+        "tree",
+        "pwd",
+        "git status",
+        "git log",
+        "git diff"
+      ],
+      "conditions": [],
+      "reason": "Read-only terminal commands are safe"
+    },
+    {
+      "category": "terminal",
+      "operation": "execute",
+      "level": "autonomous",
+      "patterns": [
+        "pytest",
+        "python -m pytest",
+        "npm test",
+        "npm run test",
+        "cargo test",
+        "go test",
+        "make test",
+        "lint",
+        "format",
+        "build",
+        "compile"
+      ],
+      "conditions": [],
+      "reason": "Standard dev commands (test, lint, build) are autonomous"
+    },
+    {
+      "category": "terminal",
+      "operation": "execute",
+      "level": "autonomous",
+      "patterns": [
+        "pip install",
+        "npm install",
+        "yarn install",
+        "cargo build",
+        "go mod tidy"
+      ],
+      "conditions": [],
+      "reason": "Dependency installation in dev environment is autonomous"
+    },
+    {
+      "category": "terminal",
+      "operation": "execute",
+      "level": "confirm",
+      "patterns": [
+        "sudo",
+        "rm -rf",
+        "dd ",
+        "mkfs",
+        "fdisk",
+        "systemctl",
+        "service ",
+        "docker run --privileged",
+        "kubectl delete",
+        "terraform destroy"
+      ],
+      "conditions": [],
+      "reason": "Privileged/destructive system commands require confirmation"
+    },
+    {
+      "category": "terminal",
+      "operation": "execute",
+      "level": "confirm",
+      "patterns": [
+        "curl -X POST",
+        "curl -X PUT",
+        "curl -X DELETE",
+        "wget --post",
+        "http POST",
+        "http PUT",
+        "http DELETE"
+      ],
+      "conditions": [],
+      "reason": "Mutating HTTP requests require confirmation"
+    },
+    {
+      "category": "git",
+      "operation": "read",
+      "level": "autonomous",
+      "patterns": [],
+      "conditions": [],
+      "reason": "Git read operations (status, log, diff, show) are safe"
+    },
+    {
+      "category": "git",
+      "operation": "write",
+      "level": "autonomous",
+      "patterns": [
+        "git add",
+        "git commit",
+        "git checkout -b",
+        "git branch",
+        "git stash"
+      ],
+      "conditions": [],
+      "reason": "Local git operations are autonomous"
+    },
+    {
+      "category": "git",
+      "operation": "write",
+      "level": "confirm",
+      "patterns": [
+        "git push",
+        "git push --force",
+        "git tag",
+        "git rebase",
+        "git reset --hard"
+      ],
+      "conditions": [],
+      "reason": "Remote pushes, force operations, history rewriting require confirmation"
+    },
+    {
+      "category": "git",
+      "operation": "delete",
+      "level": "confirm",
+      "patterns": [
+        "git branch -D",
+        "git tag -d",
+        "git push --delete"
+      ],
+      "conditions": [],
+      "reason": "Deleting branches/tags remotely requires confirmation"
+    },
+    {
+      "category": "apis",
+      "operation": "read",
+      "level": "autonomous",
+      "patterns": [
+        "GET "
+      ],
+      "conditions": [],
+      "reason": "API GET requests are safe"
+    },
+    {
+      "category": "apis",
+      "operation": "write",
+      "level": "confirm",
+      "patterns": [
+        "POST ",
+        "PUT ",
+        "PATCH "
+      ],
+      "conditions": [],
+      "reason": "Mutating API requests require confirmation"
+    },
+    {
+      "category": "apis",
+      "operation": "delete",
+      "level": "confirm",
+      "patterns": [
+        "DELETE "
+      ],
+      "conditions": [],
+      "reason": "API DELETE requests require confirmation"
+    },
+    {
+      "category": "apis",
+      "operation": "external_action",
+      "level": "confirm",
+      "patterns": [],
+      "conditions": [],
+      "reason": "External API actions with side effects require confirmation"
+    },
+    {
+      "category": "database",
+      "operation": "read",
+      "level": "autonomous",
+      "patterns": [
+        "SELECT ",
+        "SHOW ",
+        "DESCRIBE ",
+        "EXPLAIN "
+      ],
+      "conditions": [],
+      "reason": "Read-only database queries are safe"
+    },
+    {
+      "category": "database",
+      "operation": "write",
+      "level": "confirm",
+      "patterns": [
+        "INSERT ",
+        "UPDATE ",
+        "CREATE ",
+        "ALTER "
+      ],
+      "conditions": [],
+      "reason": "Database modifications require confirmation"
+    },
+    {
+      "category": "database",
+      "operation": "delete",
+      "level": "confirm",
+      "patterns": [
+        "DELETE ",
+        "DROP ",
+        "TRUNCATE "
+      ],
+      "conditions": [],
+      "reason": "Database deletions require confirmation"
+    },
+    {
+      "category": "database",
+      "operation": "execute",
+      "level": "confirm",
+      "patterns": [
+        "MIGRATE",
+        "BACKUP",
+        "RESTORE"
+      ],
+      "conditions": [],
+      "reason": "Database admin operations require confirmation"
+    }
+  ]
+}
