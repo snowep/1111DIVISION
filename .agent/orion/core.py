@@ -8,12 +8,13 @@ USER -> ORION -> Understand -> Inspect -> Plan -> Execute -> Verify -> Critique 
 from __future__ import annotations
 import json
 import os
+import re
 import subprocess
 import sys
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any, Callable, Literal
 from enum import Enum
 
 
@@ -82,6 +83,191 @@ class Task:
             "final_result": self.final_result,
             "error": self.error
         }
+
+
+class Retriever:
+    """Retrieval engine for memory, knowledge, and experience stores."""
+
+    def __init__(self, root: Path):
+        self.root = root
+        self.memory_dir = root / ".agent" / "orion" / "memory"
+        self.knowledge_dir = root / ".agent" / "orion" / "knowledge"
+        self.experience_dir = root / ".agent" / "orion" / "experience"
+
+    def retrieve(self, task: Task, budget: Literal["micro", "standard", "deep", "full"] = "standard") -> dict:
+        """Retrieve relevant sections from all three stores."""
+        understanding = task.context.get("understanding", {})
+        keywords = understanding.get("keywords", [])
+        objective = task.objective
+
+        # Extract query terms
+        query_terms = self._extract_query_terms(objective, keywords)
+
+        # Search each store
+        memory_sections = self._search_store(self.memory_dir, query_terms, "memory")
+        knowledge_sections = self._search_store(self.knowledge_dir, query_terms, "knowledge")
+        experience_sections = self._search_store(self.experience_dir, query_terms, "experience")
+
+        # Rank and filter
+        all_sections = memory_sections + knowledge_sections + experience_sections
+        ranked = self._rank_sections(all_sections, query_terms)
+        filtered = self._apply_budget(ranked, budget)
+
+        return {
+            "memory": [s for s in filtered if s["store"] == "memory"],
+            "knowledge": [s for s in filtered if s["store"] == "knowledge"],
+            "experience": [s for s in filtered if s["store"] == "experience"],
+            "total_tokens": sum(s.get("token_estimate", 0) for s in filtered),
+            "gaps": self._identify_gaps(query_terms, filtered)
+        }
+
+    def _extract_query_terms(self, objective: str, keywords: list[str]) -> list[str]:
+        """Extract search terms from objective and keywords."""
+        terms = set(keywords)
+        # Add nouns and verbs from objective
+        words = re.findall(r'\b\w+\b', objective.lower())
+        # Filter stop words
+        stop = {"the", "a", "an", "and", "or", "but", "in", "on", "at", "to", "for", "of", "with", "by", "from", "as", "is", "was", "are", "were", "be", "been", "being", "have", "has", "had", "do", "does", "did", "will", "would", "could", "should", "may", "might", "must", "can", "this", "that", "these", "those", "i", "you", "he", "she", "it", "we", "they", "me", "him", "her", "us", "them"}
+        terms.update(w for w in words if len(w) > 2 and w not in stop)
+        return list(terms)
+
+    def _search_store(self, store_dir: Path, query_terms: list[str], store_name: str) -> list[dict]:
+        """Search a single store directory."""
+        sections = []
+        if not store_dir.exists():
+            return sections
+
+        for md_file in store_dir.rglob("*.md"):
+            try:
+                content = md_file.read_text(encoding="utf-8")
+                file_sections = self._extract_sections(content, md_file, store_name, query_terms)
+                sections.extend(file_sections)
+            except Exception:
+                pass
+        return sections
+
+    def _extract_sections(self, content: str, file_path: Path, store_name: str, query_terms: list[str]) -> list[dict]:
+        """Extract relevant sections from a markdown file."""
+        sections = []
+        lines = content.split("\n")
+
+        current_heading = ""
+        current_level = 0
+        section_start = 0
+        section_lines = []
+
+        for i, line in enumerate(lines):
+            # Detect heading
+            heading_match = re.match(r'^(#+)\s+(.+)$', line)
+            if heading_match:
+                # Save previous section
+                if section_lines:
+                    section_content = "\n".join(section_lines)
+                    if self._is_relevant(section_content, query_terms) or self._is_relevant(current_heading, query_terms):
+                        sections.append({
+                            "store": store_name,
+                            "file": str(file_path.relative_to(self.root)),
+                            "heading": current_heading,
+                            "content": section_content,
+                            "line_range": (section_start + 1, i),
+                            "token_estimate": len(section_content) // 4
+                        })
+                # Start new section
+                current_heading = heading_match.group(2)
+                current_level = len(heading_match.group(1))
+                section_start = i
+                section_lines = [line]
+            else:
+                section_lines.append(line)
+
+        # Don't forget last section
+        if section_lines:
+            section_content = "\n".join(section_lines)
+            if self._is_relevant(section_content, query_terms) or self._is_relevant(current_heading, query_terms):
+                sections.append({
+                    "store": store_name,
+                    "file": str(file_path.relative_to(self.root)),
+                    "heading": current_heading,
+                    "content": section_content,
+                    "line_range": (section_start + 1, len(lines)),
+                    "token_estimate": len(section_content) // 4
+                })
+
+        return sections
+
+    def _is_relevant(self, text: str, query_terms: list[str]) -> bool:
+        """Check if text contains any query terms."""
+        text_lower = text.lower()
+        return any(term in text_lower for term in query_terms)
+
+    def _rank_sections(self, sections: list[dict], query_terms: list[str]) -> list[dict]:
+        """Rank sections by relevance."""
+        for s in sections:
+            score = 0.0
+            heading = s["heading"].lower()
+            content = s["content"].lower()
+            file_path = s["file"].lower()
+
+            # Heading match (high weight)
+            heading_hits = sum(1 for t in query_terms if t in heading)
+            score += 0.4 * min(heading_hits / max(len(query_terms), 1), 1.0)
+
+            # Content match
+            content_hits = sum(1 for t in query_terms if t in content)
+            score += 0.3 * min(content_hits / max(len(query_terms), 1), 1.0)
+
+            # File name match
+            file_hits = sum(1 for t in query_terms if t in file_path)
+            score += 0.1 * min(file_hits / max(len(query_terms), 1), 1.0)
+
+            # Authority boost
+            if "decision" in file_path or "preference" in file_path:
+                score += 0.1
+            elif "pipeline" in file_path or "architecture" in file_path:
+                score += 0.1
+
+            s["relevance_score"] = score
+
+        # Sort by score descending
+        return sorted(sections, key=lambda x: x["relevance_score"], reverse=True)
+
+    def _apply_budget(self, sections: list[dict], budget: str) -> list[dict]:
+        """Apply token budget, truncate lowest relevance first."""
+        budgets = {
+            "micro": 500,
+            "standard": 2000,
+            "deep": 4000,
+            "full": 8000
+        }
+        limit = budgets.get(budget, 2000)
+
+        total = 0
+        result = []
+        for s in sections:
+            if total + s.get("token_estimate", 0) <= limit:
+                result.append(s)
+                total += s.get("token_estimate", 0)
+            else:
+                # Try to truncate this section to fit
+                remaining = limit - total
+                if remaining > 100:  # minimum useful section
+                    truncated = s.copy()
+                    truncated["content"] = s["content"][:remaining * 4] + "... [truncated]"
+                    truncated["token_estimate"] = remaining
+                    truncated["truncated"] = True
+                    result.append(truncated)
+                break
+        return result
+
+    def _identify_gaps(self, query_terms: list[str], sections: list[dict]) -> list[str]:
+        """Identify query terms not found in retrieved sections."""
+        found_terms = set()
+        for s in sections:
+            content = (s["heading"] + " " + s["content"]).lower()
+            for t in query_terms:
+                if t in content:
+                    found_terms.add(t)
+        return [t for t in query_terms if t not in found_terms]
 
 
 class WorkspaceInspector:
@@ -557,6 +743,7 @@ class ORION:
     def __init__(self, root: Path | str = None):
         self.root = Path(root) if root else Path.cwd()
         self.inspector = WorkspaceInspector(self.root)
+        self.retriever = Retriever(self.root)
         self.planner = Planner(self.inspector)
         self.executor = Executor(self.root)
         self.verifier = Verifier(self.root)
@@ -637,9 +824,14 @@ class ORION:
         return understood
 
     def _inspect(self, task: Task) -> dict:
-        """Inspect workspace for relevant context."""
+        """Inspect workspace for relevant context + retrieve from stores."""
         inspection = self.inspector.inspect()
         task.context["inspection"] = inspection
+        
+        # Retrieve relevant context from memory/knowledge/experience stores
+        retrieved = self.retriever.retrieve(task, budget="standard")
+        task.context["retrieved"] = retrieved
+        
         return inspection
 
     def _plan(self, task: Task, inspection: dict) -> list[str]:
