@@ -649,7 +649,7 @@ class ORION:
             task.evaluation_cycle = 1
 
             # Correction loop (Phase 5)
-            while evaluation.requires_correction and task.evaluation_cycle < self.evaluator_config.max_correction_cycles:
+            while evaluation.requires_correction and task.evaluation_cycle <= self.evaluator_config.max_correction_cycles:
                 task.update_status(TaskStatus.CORRECTING)
                 self._correct(task, evaluation)
                 verification = self._verify(task, plan)
