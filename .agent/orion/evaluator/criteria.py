@@ -5,6 +5,8 @@ Criteria are explicit, measurable, and auditable. The Evaluator does not
 guess; it scores against defined dimensions.
 """
 
+from __future__ import annotations
+
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Callable, Dict, List, Optional
