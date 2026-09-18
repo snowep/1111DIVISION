@@ -8,9 +8,13 @@ Now integrated with:
 - Permissions engine (JARVIS-like autonomy model)
 - Workspace tools (FILES, CODE, WEB, TERMINAL, GIT, APIs, DATABASE)
 - Persona system (researcher, developer, designer, analyst)
+- Phase 5: Self-Evaluation (Builder -> Evaluator)
+- Phase 6: EXP (Verified experience only)
+- Phase 7: Evolution (Controlled self-improvement)
 """
 
 from __future__ import annotations
+
 import json
 import os
 import re
@@ -20,16 +24,29 @@ import uuid
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Callable, Literal, Optional
+from typing import Any, Callable, Dict, List, Literal, Optional
+
 from enum import Enum
 
 
 # Import permissions and tools
 from .permissions import (
-    PermissionsEngine, ToolRegistry, PermissionLevel, 
+    PermissionsEngine, ToolRegistry, PermissionLevel,
     ToolCategory, OperationType, ApprovalRequest
 )
 from .tools import WorkspaceTools, ExecutorWithTools
+
+# Import Phase 5 - Evaluator
+from .evaluator import (
+    EvaluatorEngine, EvaluatorConfig, EvaluationResult,
+    EvaluationVerdict, EvaluationFindingSeverity,
+)
+
+# Import Phase 6 - EXP
+from .exp import EXPManager, EXPEventResult
+
+# Import Phase 7 - Evolution
+from .evolution import EvolutionEngine
 
 
 class TaskStatus(Enum):
@@ -40,6 +57,7 @@ class TaskStatus(Enum):
     EXECUTING = "EXECUTING"
     VERIFYING = "VERIFYING"
     CRITIQUING = "CRITIQUING"
+    EVALUATING = "EVALUATING"
     CORRECTING = "CORRECTING"
     COMPLETED = "COMPLETED"
     FAILED = "FAILED"
@@ -53,22 +71,23 @@ class Task:
     status: TaskStatus = TaskStatus.PENDING
     created_at: str = field(default_factory=lambda: datetime.now().isoformat())
     updated_at: str = field(default_factory=lambda: datetime.now().isoformat())
-    plan: list[str] = field(default_factory=list)
-    execution_log: list[dict] = field(default_factory=list)
-    verification_results: list[dict] = field(default_factory=list)
-    critique_findings: list[str] = field(default_factory=list)
-    corrections: list[dict] = field(default_factory=list)
+    plan: List[str] = field(default_factory=list)
+    execution_log: List[dict] = field(default_factory=list)
+    verification_results: List[dict] = field(default_factory=list)
+    critique_findings: List[str] = field(default_factory=list)
+    corrections: List[dict] = field(default_factory=list)
     final_result: dict | None = None
     error: str | None = None
-    persona: str | None = None  # Active persona for this task
-    approval_requests: list[dict] = field(default_factory=list)
+    persona: str | None = None
+    approval_requests: List[dict] = field(default_factory=list)
+    evaluation_result: Optional[EvaluationResult] = None
+    evaluation_cycle: int = 1
 
     def update_status(self, status: TaskStatus):
         self.status = status
         self.updated_at = datetime.now().isoformat()
 
     def log_execution(self, action: str, result: Any, success: bool):
-        import json
         if isinstance(result, (dict, list)):
             result_str = json.dumps(result)
         else:
@@ -97,7 +116,8 @@ class Task:
             "final_result": self.final_result,
             "error": self.error,
             "persona": self.persona,
-            "approval_requests": self.approval_requests
+            "approval_requests": self.approval_requests,
+            "evaluation_result": self.evaluation_result.to_dict() if self.evaluation_result else None,
         }
 
 
@@ -116,7 +136,6 @@ class Retriever:
         objective = task.objective
 
         query_terms = self._extract_query_terms(objective, keywords)
-
         memory_sections = self._search_store(self.memory_dir, query_terms, "memory")
         knowledge_sections = self._search_store(self.knowledge_dir, query_terms, "knowledge")
         experience_sections = self._search_store(self.experience_dir, query_terms, "experience")
@@ -134,6 +153,7 @@ class Retriever:
         }
 
     def _extract_query_terms(self, objective: str, keywords: list[str]) -> list[str]:
+        import re
         terms = set(keywords)
         words = re.findall(r'\b\w+\b', objective.lower())
         stop = {"the", "a", "an", "and", "or", "but", "in", "on", "at", "to", "for", "of", "with", "by", "from", "as", "is", "was", "are", "were", "be", "been", "being", "have", "has", "had", "do", "does", "did", "will", "would", "could", "should", "may", "might", "must", "can", "this", "that", "these", "those", "i", "you", "he", "she", "it", "we", "they", "me", "him", "her", "us", "them"}
@@ -157,9 +177,7 @@ class Retriever:
     def _extract_sections(self, content: str, file_path: Path, store_name: str, query_terms: list[str]) -> list[dict]:
         sections = []
         lines = content.split("\n")
-
         current_heading = ""
-        current_level = 0
         section_start = 0
         section_lines = []
 
@@ -178,7 +196,6 @@ class Retriever:
                             "token_estimate": len(section_content) // 4
                         })
                 current_heading = heading_match.group(2)
-                current_level = len(heading_match.group(1))
                 section_start = i
                 section_lines = [line]
             else:
@@ -228,12 +245,7 @@ class Retriever:
         return sorted(sections, key=lambda x: x["relevance_score"], reverse=True)
 
     def _apply_budget(self, sections: list[dict], budget: str) -> list[dict]:
-        budgets = {
-            "micro": 500,
-            "standard": 2000,
-            "deep": 4000,
-            "full": 8000
-        }
+        budgets = {"micro": 500, "standard": 2000, "deep": 4000, "full": 8000}
         limit = budgets.get(budget, 2000)
 
         total = 0
@@ -395,7 +407,7 @@ class Planner:
             plan.append("Report outcome")
 
         plan.append("Verify all success criteria met")
-        plan.append("Critique result for completeness and correctness")
+        plan.append("Evaluate for completion")
 
         return plan
 
@@ -442,7 +454,6 @@ class Verifier:
                 result = log.get("result", {})
                 if isinstance(result, str):
                     try:
-                        import json
                         result = json.loads(result)
                     except Exception:
                         result = {}
@@ -456,7 +467,6 @@ class Verifier:
                             has_read = True
                     elif action == "summarize":
                         has_summarize = True
-            # For analyze tasks, need either identify OR read, plus inspect and summarize
             return has_inspect and (has_identify or has_read) and has_summarize
 
         if "create" in keywords:
@@ -468,7 +478,6 @@ class Verifier:
                 result = log.get("result", {})
                 if isinstance(result, str):
                     try:
-                        import json
                         result = json.loads(result)
                     except Exception:
                         result = {}
@@ -492,7 +501,6 @@ class Verifier:
                 result = log.get("result", {})
                 if isinstance(result, str):
                     try:
-                        import json
                         result = json.loads(result)
                     except Exception:
                         result = {}
@@ -556,7 +564,12 @@ class ORION:
     ORION Core Orchestrator with Permissions & Tools
 
     Implements the pipeline:
-    USER -> Understand -> Inspect -> Plan -> Execute -> Verify -> Critique -> Correct -> Report
+    USER -> Understand -> Inspect -> Plan -> Execute -> Evaluate -> Report
+
+    With phases:
+    - Phase 5: Self-Evaluation (Builder -> Evaluator)
+    - Phase 6: EXP (Awarded for verified work only)
+    - Phase 7: Evolution (Controlled self-improvement)
 
     With JARVIS-like autonomy:
     - Autonomous for: read, test, lint, build, local git, temp files
@@ -568,12 +581,25 @@ class ORION:
         self.inspector = WorkspaceInspector(self.root)
         self.retriever = Retriever(self.root)
         self.planner = Planner(self.inspector)
+        self.verifier = Verifier(self.root)
+        self.critiquer = Critiquer()
+
+        # Phase 5: Evaluator
+        self.evaluator_config = EvaluatorConfig()
+        self.evaluator_engine = EvaluatorEngine(self.root, self.evaluator_config)
+
+        # Phase 6: EXP
+        self.exp_manager = EXPManager(self.root)
+
+        # Phase 7: Evolution
+        self.evolution_engine = EvolutionEngine(self.root)
+
+        # Permissions and tools
         self.permissions = PermissionsEngine(self.root)
         self.registry = ToolRegistry(self.permissions)
         self.tools = WorkspaceTools(self.root, self.permissions, self.registry)
         self.executor = ExecutorWithTools(self.root, self.permissions, self.registry)
-        self.verifier = Verifier(self.root)
-        self.critiquer = Critiquer()
+
         self.task_counter = 0
         self.active_persona: Optional[str] = None
 
@@ -602,7 +628,7 @@ class ORION:
             plan = self._plan(task, inspection)
             task.plan = plan
 
-            # STAGE 4: EXECUTE
+            # STAGE 4: BUILDER → EXECUTE
             task.update_status(TaskStatus.EXECUTING)
             self._execute(task, plan)
 
@@ -611,23 +637,40 @@ class ORION:
             verification = self._verify(task, plan)
             task.verification_results.append(verification)
 
-            # STAGE 6: CRITIQUE
+            # STAGE 6: BUILDER → CRITIQUE
             task.update_status(TaskStatus.CRITIQUING)
             critique = self._critique(task, verification)
             task.critique_findings = critique
 
-            # STAGE 7: CORRECT (if needed)
-            if critique and any("CRITICAL" in c or "FAIL" in c for c in critique):
+            # STAGE 7: EVALUATOR → Evaluate (Phase 5)
+            task.update_status(TaskStatus.EVALUATING)
+            evaluation = self._evaluate(task, verification, critique)
+            task.evaluation_result = evaluation
+            task.evaluation_cycle = 1
+
+            # Correction loop (Phase 5)
+            while evaluation.requires_correction and task.evaluation_cycle < self.evaluator_config.max_correction_cycles:
                 task.update_status(TaskStatus.CORRECTING)
-                self._correct(task, critique)
+                self._correct(task, evaluation)
                 verification = self._verify(task, plan)
                 task.verification_results.append(verification)
                 critique = self._critique(task, verification)
                 task.critique_findings = critique
 
-            # STAGE 8: REPORT
+                task.evaluation_cycle += 1
+                evaluation = self._evaluate(task, verification, critique)
+                task.evaluation_result = evaluation
+                task.evaluation_cycles_applied = task.evaluation_cycle
+
+            # STAGE 8: REPORT / EXP (Phase 6)
             task.update_status(TaskStatus.COMPLETED)
-            task.final_result = self._report(task, verification, critique)
+            task.final_result = self._report(task, verification, critique, evaluation)
+
+            # Phase 6: Award EXP for verified useful experience
+            exp_result = self._award_exp(task, evaluation)
+
+            # Phase 7: Observe for evolution opportunities
+            self._observe_for_evolution(task, evaluation, exp_result)
 
         except Exception as e:
             task.update_status(TaskStatus.FAILED)
@@ -674,19 +717,29 @@ class ORION:
     def _critique(self, task: Task, verification: dict) -> list[str]:
         return self.critiquer.critique(task, verification)
 
-    def _correct(self, task: Task, critique: list[str]):
-        for finding in critique:
-            if "CRITICAL" in finding or "FAIL" in finding:
+    def _evaluate(self, task: Task, verification: dict, critique: list[str]) -> EvaluationResult:
+        """Phase 5: Run the Evaluator stage."""
+        return self.evaluator_engine.evaluate(
+            task,
+            verification=verification,
+            correction_budget_remaining=self.evaluator_config.max_correction_cycles - (getattr(task, 'evaluation_cycle', 1) - 1),
+            evaluation_cycle=getattr(task, 'evaluation_cycle', 1),
+        )
+
+    def _correct(self, task: Task, evaluation: EvaluationResult):
+        """Apply corrections for FAIL findings."""
+        for finding in evaluation.findings:
+            if finding.severity == EvaluationFindingSeverity.CRITICAL:
                 task.corrections.append({
                     "timestamp": datetime.now().isoformat(),
-                    "finding": finding,
+                    "finding": finding.message,
                     "action": "Correction attempted - manual intervention may be required",
                     "resolved": False
                 })
 
-    def _report(self, task: Task, verification: dict, critique: list[str]) -> dict:
+    def _report(self, task: Task, verification: dict, critique: list[str], evaluation: EvaluationResult) -> dict:
         return {
-            "success": verification.get("overall") == "PASS",
+            "success": evaluation.verdict == EvaluationVerdict.PASS,
             "task_id": task.id,
             "objective": task.objective,
             "status": task.status.value,
@@ -695,8 +748,47 @@ class ORION:
             "verification": verification,
             "critique_findings": critique,
             "corrections_attempted": len(task.corrections),
+            "evaluation": evaluation.to_dict(),
             "completed_at": datetime.now().isoformat()
         }
+
+    def _award_exp(self, task: Task, evaluation: EvaluationResult) -> dict:
+        """Phase 6: Award EXP for verified useful experience."""
+        if not evaluation.passed:
+            return {"exp_awarded": 0, "reason": "Task did not pass evaluation"}
+
+        outcome = "success" if task.error is None else "partial"
+        lesson = self._summarize_lesson(task)
+
+        event_result = self.exp_manager.award(
+            task.id,
+            evaluation,
+            event="normal_verified",
+            outcome=outcome,
+            lesson=lesson,
+        )
+
+        return {
+            "exp_awarded": self.exp_manager.awards.get("normal_verified", 25) if event_result == EXPEventResult.AWARDED else 0,
+            "result": event_result.value,
+            "reason": "Awarded for verified success" if event_result == EXPEventResult.AWARDED else event_result.value,
+        }
+
+    def _summarize_lesson(self, task: Task) -> str:
+        """Extract a brief lesson from task execution for EXP."""
+        if task.critique_findings:
+            return f"Identified {len(task.critique_findings)} areas for improvement"
+        if task.corrections:
+            return f"Required {len(task.corrections)} corrections, indicating process refinement needed"
+        return "Task completed successfully with verification"
+
+    def _observe_for_evolution(self, task: Task, evaluation: EvaluationResult, exp_result: dict):
+        """Phase 7: Observe patterns that could drive evolution proposals."""
+        # This is a lightweight observation hook. Future work:
+        # - Track repeated correction cycles
+        # - Identify recurring verification failures
+        # - Detect useful patterns that could be codified
+        pass
 
     def _save_task(self, task: Task):
         tasks_dir = self.root / ".agent" / "tasks" / "completed"
@@ -730,6 +822,44 @@ class ORION:
     def respond_approval(self, request_id: str, approved: bool, response: str = "") -> bool:
         return self.permissions.respond_approval(request_id, approved, response)
 
+    # EXP helpers
+    def get_exp_progress(self) -> dict:
+        """Return current EXP progress."""
+        return self.exp_manager.get_progress()
+
+    def get_total_exp(self) -> int:
+        """Return total accumulated EXP."""
+        return self.exp_manager.get_total_exp()
+
+    # Evolution helpers
+    def propose_evolution(
+        self,
+        title: str,
+        problem: str,
+        proposed_change: str,
+        expected_benefit: str,
+        risk: str,
+        test_plan: str,
+    ):
+        """Propose an evolution change."""
+        return self.evolution_engine.create_proposal(
+            title=title,
+            problem=problem,
+            evidence=[],
+            proposed_change=proposed_change,
+            expected_benefit=expected_benefit,
+            risk=risk,
+            test_plan=test_plan,
+        )
+
+    def get_evolution_proposals(self) -> list:
+        """Get all evolution proposals."""
+        return self.evolution_engine.get_all_proposals()
+
+    def get_version(self) -> str:
+        """Get current version."""
+        return self.evolution_engine.get_current_version()
+
     # Helper methods
     def _extract_keywords(self, objective: str) -> list[str]:
         keywords = []
@@ -741,7 +871,8 @@ class ORION:
             "update": ["update", "modify", "change", "edit", "alter"],
             "delete": ["delete", "remove", "clean", "purge"],
             "test": ["test", "verify", "validate", "check"],
-            "deploy": ["deploy", "release", "publish", "ship"]
+            "deploy": ["deploy", "release", "publish", "ship"],
+            "evaluate": ["evaluate", "assess", "review", "check"],
         }
         for category, words in kw_map.items():
             if any(w in obj_lower for w in words):
@@ -786,14 +917,17 @@ def main():
     print(f"Plan: {len(task.plan)} steps")
     print(f"Executed: {len(task.execution_log)} steps")
     print(f"Verification: {task.verification_results[-1].get('overall') if task.verification_results else 'N/A'}")
-    print(f"Critique findings: {len(task.critique_findings)}")
+    print(f"Evaluation: {task.evaluation_result.verdict.value if task.evaluation_result else 'N/A'}")
+    print(f"Score: {task.evaluation_result.score if task.evaluation_result else 0:.2f}")
+    print(f"EXP Awarded: {orion.get_total_exp()}")
+    print(f"Level: {orion.get_exp_progress().get('level', {}).get('name', 'Unknown')}")
     print(f"Success: {task.final_result.get('success') if task.final_result else False}")
 
     if task.error:
         print(f"Error: {task.error}")
 
     if task.critique_findings:
-        print("\nCritique:")
+        print("\nCritique Findings:")
         for finding in task.critique_findings:
             print(f"  - {finding}")
 
