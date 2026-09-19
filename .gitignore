@@ -49,3 +49,6 @@ list_*.py
 # Local config
 .env
 .env.local
+
+node_modules/
+.next
