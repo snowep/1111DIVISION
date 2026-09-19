@@ -56,6 +56,15 @@ class PermissionRule:
     # Human-readable reason for this rule
     reason: str = ""
 
+    def __post_init__(self):
+        """Auto-convert strings to Enums for JSON-loaded rules."""
+        if isinstance(self.category, str):
+            self.category = ToolCategory(self.category)
+        if isinstance(self.operation, str):
+            self.operation = OperationType(self.operation)
+        if isinstance(self.level, str):
+            self.level = PermissionLevel(self.level)
+
 
 @dataclass
 class ApprovalRequest:

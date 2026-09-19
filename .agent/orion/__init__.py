@@ -11,9 +11,13 @@ from .permissions import (
 )
 from .tools import WorkspaceTools, ExecutorWithTools, ToolResult
 
+from .memory_gateway import MemoryGateway
+from .persona_router import PersonaRouter
+from .model import ModelConfig, ModelAdapterInterface, SimpleModelAdapter
+
 __all__ = [
     "ORION",
-    "Task", 
+    "Task",
     "TaskStatus",
     "PermissionsEngine",
     "ToolRegistry",
@@ -24,7 +28,12 @@ __all__ = [
     "PermissionRule",
     "WorkspaceTools",
     "ExecutorWithTools",
-    "ToolResult"
+    "ToolResult",
+    "MemoryGateway",
+    "PersonaRouter",
+    "ModelConfig",
+    "ModelAdapterInterface",
+    "SimpleModelAdapter",
 ]
 
 __version__ = "1.0.0"

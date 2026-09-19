@@ -47,6 +47,9 @@ from .exp import EXPManager, EXPEventResult
 
 # Import Phase 7 - Evolution
 from .evolution import EvolutionEngine
+from .model import ModelConfig, ModelAdapterInterface, create_model_adapter
+from .persona_router import PersonaRouter
+from .memory_gateway import MemoryGateway
 
 
 class TaskStatus(Enum):
@@ -591,6 +594,10 @@ class ORION:
         # Phase 6: EXP
         self.exp_manager = EXPManager(self.root)
 
+        # Phase 8: Runtime Integration
+        self.memory_gateway = MemoryGateway(self.root)
+        self.model_adapter = create_model_adapter(ModelConfig(), self.root)
+        self.persona_router = PersonaRouter(self.root, self.model_adapter.config, self.model_adapter)
         # Phase 7: Evolution
         self.evolution_engine = EvolutionEngine(self.root)
 
