@@ -8,7 +8,7 @@ import {
   Accordion, AccordionSummary, AccordionDetails, Table, TableBody, TableCell,
   TableContainer, TableHead, TableRow, LinearProgress, Tooltip, Avatar,
   Badge, Menu, MenuItem, Select, FormControl, InputLabel, Dialog, DialogTitle,
-  DialogContent, DialogActions, Slide
+  DialogContent, DialogActions
 } from "@mui/material";
 import {
   Memory as MemoryIcon, Hub as HubIcon, Storage as StorageIcon,
@@ -78,8 +78,6 @@ const initialEvents: OrionEvent[] = [{
   status: "complete"
 }];
 
-// TransitionSlide for Dialog
-const TransitionSlide = Slide;
 
 export default function OrionDashboard() {
   // Core state
@@ -371,7 +369,7 @@ export default function OrionDashboard() {
           <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
             ORION
           </Typography>
-          <Badge badgeContent={version?.tier > 0 ? version.tier : ""} color="error" overlap="circular">
+          <Badge badgeContent={version && version.tier > 0 ? version.tier : ""} color="error" overlap="circular">
             <VersionIcon sx={{ mr: 1 }} />
           </Badge>
           <Typography variant="body2" sx={{ mr: 2, minWidth: 180 }}>
@@ -583,7 +581,6 @@ export default function OrionDashboard() {
                         <ListItem 
                           key={persona.name} 
                           disableGutters
-                          selected={activePersona?.name === persona.name}
                           sx={{ bgcolor: activePersona?.name === persona.name ? "primary.main" : "transparent", "&:hover": { bgcolor: "action.hover" }}}
                           onClick={() => activatePersona(persona.name)}
                         >
@@ -724,7 +721,7 @@ export default function OrionDashboard() {
                           >
                             <TableCell>
                               {level.name}
-                              {expProgress?.level.name === level.name && <Badge badgeContent="CURRENT" color="primary" size="small" sx={{ ml: 1 }} />}
+                              {expProgress?.level.name === level.name && <Chip label="CURRENT" size="small" color="primary" variant="outlined" sx={{ ml: 1 }} />}
                             </TableCell>
                             <TableCell align="right">{level.minExp.toLocaleString()}</TableCell>
                             <TableCell>{level.desc}</TableCell>
@@ -752,7 +749,7 @@ export default function OrionDashboard() {
                     <CircularProgress size={24} />
                   ) : version ? (
                     <Box>
-                      <Typography variant="h3" sx={{ fontWeight: 700, fontFamily: "monospace" }}>
+                      <Typography variant="h3" sx={{ fontWeight: 700, fontFamily: 'monospace' }}>
                         {version.version}
                       </Typography>
                       <Typography variant="h6" color="primary">
@@ -808,7 +805,7 @@ export default function OrionDashboard() {
                     </Button>
                     <Button variant="contained" startIcon={<PlayIcon />} 
                       onClick={async () => {
-                        const vm = await apiCall("/api/orion/version", {
+                        const vm = await apiCall<{ version: VersionInfo }>("/api/orion/version", {
                           method: "POST", body: JSON.stringify({ action: "bump", type: "build" })
                         });
                         setVersion(vm.version);
@@ -818,7 +815,7 @@ export default function OrionDashboard() {
                     </Button>
                     <Button variant="outlined" startIcon={<RefreshIcon />}
                       onClick={async () => {
-                        const vm = await apiCall("/api/orion/version", {
+                        const vm = await apiCall<{ version: VersionInfo }>("/api/orion/version", {
                           method: "POST", body: JSON.stringify({ action: "bump", type: "tier2" })
                         });
                         setVersion(vm.version);
@@ -863,7 +860,7 @@ export default function OrionDashboard() {
                           {tasks.map((task) => (
                             <TableRow key={task.taskId} hover>
                               <TableCell>
-                                <Typography variant="body2" fontFamily="monospace">
+                                <Typography variant="body2" sx={{ fontFamily: 'monospace' }}>
                                   {task.taskId}
                                 </Typography>
                               </TableCell>
@@ -893,7 +890,7 @@ export default function OrionDashboard() {
                               </TableCell>
                               <TableCell>
                                 {task.version ? (
-                                  <Typography variant="body2" fontFamily="monospace">
+                                  <Typography variant="body2" sx={{ fontFamily: 'monospace' }}>
                                     {task.version.version}
                                   </Typography>
                                 ) : "—"}
@@ -937,7 +934,7 @@ export default function OrionDashboard() {
                   ) : (
                     <List dense>
                       {memoryFiles.map((file) => (
-                        <ListItem key={file.path} disableGutters button onClick={() => readMemoryFile(file)}>
+                        <ListItem key={file.path} disableGutters onClick={() => readMemoryFile(file)}>
                           <FolderOpenIcon sx={{ mr: 1 }} />
                           <ListItemText primary={file.path} />
                         </ListItem>
@@ -958,7 +955,7 @@ export default function OrionDashboard() {
                   {selectedMemoryFile ? (
                     <Box>
                       <Stack direction="row" spacing={1} sx={{ alignItems: "center", mb: 1 }}>
-                        <Typography variant="body2" fontFamily="monospace">{selectedMemoryFile.path}</Typography>
+                        <Typography variant="body2" sx={{ fontFamily: 'monospace' }}>{selectedMemoryFile.path}</Typography>
                         <Button size="small" variant={editingMemory ? "contained" : "outlined"} onClick={() => setEditingMemory(!editingMemory)}>
                           {editingMemory ? "Cancel" : "Edit"}
                         </Button>
@@ -981,7 +978,7 @@ export default function OrionDashboard() {
                       ) : (
                         <Box 
                           sx={{ 
-                            fontFamily: "monospace", 
+                            fontFamily: 'monospace', 
                             whiteSpace: "pre-wrap", 
                             maxHeight: 500, 
                             overflow: "auto",
@@ -1089,7 +1086,7 @@ export default function OrionDashboard() {
               <Stack direction="row" spacing={2} sx={{ flexWrap: "wrap" }}>
                 <Button variant="contained" startIcon={<PlayIcon />} 
                   onClick={async () => {
-                    const result = await apiCall("/api/orion/evaluate", {
+                    const result = await apiCall<{ result: { verdict: string; score: number } }>("/api/orion/evaluate", {
                       method: "POST",
                       body: JSON.stringify({
                         action: "evaluate",
@@ -1131,13 +1128,13 @@ export default function OrionDashboard() {
                 </AccordionSummary>
                 <AccordionDetails>
                   <Stack spacing={1}>
-                    <Typography variant="body2" fontFamily="monospace">POST /api/orion/task - Run full pipeline</Typography>
-                    <Typography variant="body2" fontFamily="monospace">GET/POST /api/orion/memory - Memory/knowledge operations</Typography>
-                    <Typography variant="body2" fontFamily="monospace">GET/POST /api/orion/personas - Persona management</Typography>
-                    <Typography variant="body2" fontFamily="monospace">GET/POST /api/orion/exp - EXP system</Typography>
-                    <Typography variant="body2" fontFamily="monospace">GET/POST /api/orion/version - Version control</Typography>
-                    <Typography variant="body2" fontFamily="monospace">POST /api/orion/evaluate - Run evaluator</Typography>
-                    <Typography variant="body2" fontFamily="monospace">GET /api/workspace - Scan workspace</Typography>
+                    <Typography variant="body2" sx={{ fontFamily: 'monospace' }}>POST /api/orion/task - Run full pipeline</Typography>
+                    <Typography variant="body2" sx={{ fontFamily: 'monospace' }}>GET/POST /api/orion/memory - Memory/knowledge operations</Typography>
+                    <Typography variant="body2" sx={{ fontFamily: 'monospace' }}>GET/POST /api/orion/personas - Persona management</Typography>
+                    <Typography variant="body2" sx={{ fontFamily: 'monospace' }}>GET/POST /api/orion/exp - EXP system</Typography>
+                    <Typography variant="body2" sx={{ fontFamily: 'monospace' }}>GET/POST /api/orion/version - Version control</Typography>
+                    <Typography variant="body2" sx={{ fontFamily: 'monospace' }}>POST /api/orion/evaluate - Run evaluator</Typography>
+                    <Typography variant="body2" sx={{ fontFamily: 'monospace' }}>GET /api/workspace - Scan workspace</Typography>
                   </Stack>
                 </AccordionDetails>
               </Accordion>
@@ -1148,22 +1145,22 @@ export default function OrionDashboard() {
                 </AccordionSummary>
                 <AccordionDetails>
                   <Stack spacing={1}>
-                    <Typography variant="body2" fontFamily="monospace">.agent/orion/memory/ - ORION shared memory</Typography>
-                    <Typography variant="body2" fontFamily="monospace">.agent/orion/knowledge/ - ORION shared knowledge</Typography>
-                    <Typography variant="body2" fontFamily="monospace">.agent/orion/experience/ - Verified task records</Typography>
-                    <Typography variant="body2" fontFamily="monospace">.agent/orion/exp/ - EXP state (JSON)</Typography>
-                    <Typography variant="body2" fontFamily="monospace">.agent/orion/evolution/ - Version + proposals</Typography>
-                    <Typography variant="body2" fontFamily="monospace">.agent/orion/personas/definitions/ - Persona definitions</Typography>
-                    <Typography variant="body2" fontFamily="monospace">.agent/shared/ - Cross-persona commons</Typography>
+                    <Typography variant="body2" sx={{ fontFamily: 'monospace' }}>.agent/orion/memory/ - ORION shared memory</Typography>
+                    <Typography variant="body2" sx={{ fontFamily: 'monospace' }}>.agent/orion/knowledge/ - ORION shared knowledge</Typography>
+                    <Typography variant="body2" sx={{ fontFamily: 'monospace' }}>.agent/orion/experience/ - Verified task records</Typography>
+                    <Typography variant="body2" sx={{ fontFamily: 'monospace' }}>.agent/orion/exp/ - EXP state (JSON)</Typography>
+                    <Typography variant="body2" sx={{ fontFamily: 'monospace' }}>.agent/orion/evolution/ - Version + proposals</Typography>
+                    <Typography variant="body2" sx={{ fontFamily: 'monospace' }}>.agent/orion/personas/definitions/ - Persona definitions</Typography>
+                    <Typography variant="body2" sx={{ fontFamily: 'monospace' }}>.agent/shared/ - Cross-persona commons</Typography>
                   </Stack>
                 </AccordionDetails>
               </Accordion>
 
               <Divider />
               <Typography variant="subtitle2">About ORION</Typography>
-              <Typography variant="body2" color="text.secondary" paragraph>
+              <Typography variant="body2" color="text.secondary" sx={{ whiteSpace: 'pre-line' }}>
                 ORION — Orchestrated Reasoning & Intelligence Operating Network
-                <br />
+                
                 A self-evolving, persona-driven agent runtime with persistent Markdown memory,
                 token-efficient retrieval, self-evaluation loops, EXP gamification, and controlled evolution.
               </Typography>
@@ -1177,7 +1174,7 @@ export default function OrionDashboard() {
       </Box>
 
       {/* Create Persona Dialog */}
-      <Dialog open={showCreatePersona} onClose={() => setShowCreatePersona(false)} TransitionComponent={TransitionSlide} maxWidth="md" fullWidth>
+      <Dialog open={showCreatePersona} onClose={() => setShowCreatePersona(false)} maxWidth="md" fullWidth>
         <DialogTitle>Create New Persona</DialogTitle>
         <DialogContent>
           <Stack spacing={2} sx={{ minWidth: 400 }}>

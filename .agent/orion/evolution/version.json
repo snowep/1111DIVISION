@@ -1,12 +1,12 @@
 {
-  "version": "0.1.0-0.1",
+  "version": "v0.1.0-0.2",
   "major": 0,
   "minor": 1,
   "patch": 0,
   "tier": 0,
-  "build": 1,
+  "build": 2,
   "codename": "INITIATE",
-  "releasedAt": "2026-09-19T07:10:43.988Z",
+  "releasedAt": "2026-09-19T08:21:59.230Z",
   "evolutionMilestones": [
     {
       "version": "0.1.0",
